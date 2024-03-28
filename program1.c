@@ -12,7 +12,7 @@ int main(int argc, char const *argv[]) {
 
     // Crear semaforo
     sem_t semaforo;
-    sem_init(&semaforo, 1, 1);
+    sem_init(&semaforo, 1, 0);
 
     pid_t pid = fork();
 
@@ -21,19 +21,19 @@ int main(int argc, char const *argv[]) {
         // Proceso hijo
         close(tuberia[1]);
         close(tuberiaMensajes[0]);
-
-		printf("Proceso 2\n");
         
         char* ruta;
 		read(tuberia[0], &ruta, sizeof(ruta));
-		printf("Dato recibido: %s\n", ruta);
 
         if (access(ruta, X_OK) != 0) {
             const char *mensaje = "No se encuentra el archivo a ejecutar";
             write(tuberiaMensajes[1], &mensaje, sizeof(mensaje));
         }
-        sem_post(&semaforo);
-
+        
+        if (0) {
+            const char *mensaje = "Proceso 3 no iniciado";
+            write(tuberiaMensajes[1], &mensaje, sizeof(mensaje));
+        }
 
     } else {
         // Proceso padre
@@ -50,15 +50,7 @@ int main(int argc, char const *argv[]) {
             ruta = argv[1];
         }
 
-		printf("Proceso 1\n");
-
-		printf("Dato enviado: %s\n", ruta);
 		write(tuberia[1], &ruta, sizeof(ruta));
-
-        sem_wait(&semaforo);
-        char* mensaje;
-        read(tuberiaMensajes[0], &mensaje, sizeof(mensaje));
-        printf("Mensaje recibido: %s\n", mensaje);
     }
 
 	close(tuberia[0]);

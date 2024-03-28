@@ -8,37 +8,40 @@
 #include <string.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/shm.h>
 
 int main(int argc, char const *argv[]) {
+
+    shm_unlink("/SemaforoCompartido");
+    unlink("/SemaforoCompartido");
 
     // Crear area de memoria para el semaforo compartido
     sem_t *semaforoCompartido;
     int area = shm_open("/SemaforoCompartido", O_CREAT | O_RDWR, 0666);
     ftruncate(area, sizeof(sem_t));
     semaforoCompartido = mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, area, 0);
+    printf("Area de semaforo creada: %d\n", area);
 
     // Crear area de memoria para buffer compartido
     char *memoriaCompartida;
     int areaMemoriaCompartida = shm_open("/memoriaCompartida", O_CREAT | O_RDWR, 0666);
 	ftruncate(areaMemoriaCompartida, 4096);
 	memoriaCompartida = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, areaMemoriaCompartida, 0);
+    printf("Area de memoria compartida creada: %d\n", areaMemoriaCompartida);
 
     // Iniciar semaforo y esperar
     sem_init(semaforoCompartido, 1, 0);
+    printf("Esperando a que se despierte el semaforo\n");
     sem_wait(semaforoCompartido);
 
     // Leer la ruta del buffer compartido
+    printf("Semaforo despierto, leyendo memoria compartida\n");
     char *ruta;
     strcpy(ruta, memoriaCompartida);
     printf("Ruta: %s\n", ruta);
 
-    return 0;
-
     int tuberiaSalida[2];
     pipe(tuberiaSalida);
-
-    //char *ruta = "/bin/uname";
-    //printf("Ruta: %s\n\n", ruta);
 
     pid_t pid = fork();
 
@@ -51,7 +54,15 @@ int main(int argc, char const *argv[]) {
         read(tuberiaSalida[0], buffer, sizeof(buffer));
         char *mensaje = (char *)buffer;
 
-        printf("%s\n", mensaje);
+        strcpy(memoriaCompartida, mensaje);
+        printf("Salida enviada a proceso inicial\n");
+        sleep(2);
+        sem_post(semaforoCompartido);
+
+        /* Desasociar el semáforo y eliminarlo */
+        // munmap(semaforoCompartido, sizeof(sem_t));
+        // shm_unlink("/SemaforoCompartido");
+	    // unlink("/SemaforoCompartido");
     } else {
         // Proceso padre
         close(tuberiaSalida[0]);
@@ -61,11 +72,6 @@ int main(int argc, char const *argv[]) {
 
         printf("Error al ejecutar el comando\n");
     }
-
-    /* Desasociar el semáforo y eliminarlo */
-    munmap(semaforoCompartido, sizeof(sem_t));
-    shm_unlink("/SemaforoCompartido");
-	unlink("/SemaforoCompartido");
 
     return 0;
 }

@@ -5,6 +5,10 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 
+#include <string.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+
 
 int main(int argc, char const *argv[]) {
 
@@ -14,7 +18,7 @@ int main(int argc, char const *argv[]) {
 
     // Crear semáforo
     sem_t *semaforo;
-    semaforo = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    semaforo = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, -1, 0);
     sem_init(semaforo, 1, 0);
 
     pid_t pid = fork();
@@ -33,11 +37,36 @@ int main(int argc, char const *argv[]) {
             sem_post(semaforo);
         }
 
-        if (1) {
-            const char *mensaje = "Proceso 3 no iniciado";
+        /* Intentar conectar con proceso 3 */
+        sem_t *semaforoCompartido;
+        int area = shm_open("/SemaforoCompartido", O_RDWR, 0666);
+        if (area == -1) {
+            const char *mensaje = "Proceso p3 no parece estar en ejecución";
             write(tuberiaMensajes[1], &mensaje, sizeof(mensaje));
             sem_post(semaforo);
+
+            // const char *salida = "exit";
+            // write(tuberiaMensajes[1], &salida, sizeof(salida));
+            // sem_post(semaforo);
+            return 1;
         }
+        semaforoCompartido = mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, area, 0);
+
+        // Enviar ruta a proceso 3
+        char *memoriaCompartida;
+        int areaMemoriaCompartida = shm_open("/memoriaCompartida", O_RDWR, 0666);
+	    memoriaCompartida = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, areaMemoriaCompartida, 0);
+
+        strcpy(memoriaCompartida, ruta);
+
+        // Descongelar proceso 3
+        sem_post(semaforoCompartido);
+
+
+
+        /* Desasociar el semáforo y eliminarlo */
+        munmap(semaforoCompartido, sizeof(sem_t));
+        shm_unlink("/SemaforoCompartido");
 
     } else {
         // Proceso padre
@@ -59,6 +88,11 @@ int main(int argc, char const *argv[]) {
             sem_wait(semaforo);
             char* mensaje;
             read(tuberiaMensajes[0], &mensaje, sizeof(mensaje));
+            
+            if (mensaje == "exit") {
+                break;
+            }
+            
             printf("Mensaje recibido: %s\n", mensaje);
         }
 

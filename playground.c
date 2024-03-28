@@ -5,7 +5,12 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 
-int main(int argc, char const *argv[]) {
+#include <string.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
+int main() {
+
+	
 	return 0;
 }

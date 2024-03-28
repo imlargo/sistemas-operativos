@@ -39,7 +39,6 @@ int main(int argc, char const *argv[]) {
         }
 
         // Intentar conectar con proceso 3
-        printf("Intentar conectar con proceso 3\n");
         sem_t *semaforoCompartido;
         int area = shm_open("/SemaforoCompartido", O_RDWR, 0666);
         if (area == -1) {
@@ -54,8 +53,6 @@ int main(int argc, char const *argv[]) {
         }
         semaforoCompartido = mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, area, 0);
 
-        printf("Conectado con proceso 3 y su semaforo\n");
-
         // Enviar ruta a proceso 3
         printf("Enviando ruta a proceso 3\n");
         char *memoriaCompartida;
@@ -63,31 +60,19 @@ int main(int argc, char const *argv[]) {
 	    memoriaCompartida = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, areaMemoriaCompartida, 0);
 
         strcpy(memoriaCompartida, ruta);
-        printf("Ruta enviada\n");
 
         // Descongelar proceso 3
         sem_post(semaforoCompartido);
-        sleep(0.1);
+        sleep(3);
 
         // Leer la salida del proceso 3
-        printf("Esperando a que proceso 3 termine\n");
         sem_wait(semaforoCompartido);
-        printf("Proceso 3 ha regresado dato\n");
+        printf("Salida del proceso 3: %s\n", memoriaCompartida);
 
-        sleep(1);
-        char* salidaProceso3;
-        sleep(1);
-        strcpy(salidaProceso3, memoriaCompartida);
-        sleep(1);
-        write(tuberiaMensajes[1], &salidaProceso3, sizeof(salidaProceso3));
-        sleep(2);
-        // printf("Salida de proceso 3: %s\n", salidaProceso3);
-        sem_post(semaforo);
 
         /* Desasociar el semáforo y eliminarlo */
-        munmap(semaforoCompartido, sizeof(sem_t));
-        shm_unlink("/SemaforoCompartido");
-
+        //munmap(semaforoCompartido, sizeof(sem_t));
+        //shm_unlink("/SemaforoCompartido");
 
         // Salir
         const char *salida = "exit";
@@ -102,8 +87,9 @@ int main(int argc, char const *argv[]) {
         const char *ruta;
 
         if (argc == 1) {
-            printf("Uso: p1 /bin/ls.\n");
-            ruta = "/bin/ls";
+            char *base = "/bin/ls";
+            printf("Uso: %s\n", base);
+            ruta = base;
         } else {
             ruta = argv[1];
         }

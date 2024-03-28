@@ -65,8 +65,8 @@ int main(int argc, char const *argv[]) {
 
 
         /* Desasociar el semáforo y eliminarlo */
-        munmap(semaforoCompartido, sizeof(sem_t));
-        shm_unlink("/SemaforoCompartido");
+        // munmap(semaforoCompartido, sizeof(sem_t));
+        // shm_unlink("/SemaforoCompartido");
 
     } else {
         // Proceso padre

@@ -32,6 +32,8 @@ int main(int argc, char const *argv[]) {
     strcpy(ruta, memoriaCompartida);
     printf("Ruta: %s\n", ruta);
 
+    return 0;
+
     int tuberiaSalida[2];
     pipe(tuberiaSalida);
 

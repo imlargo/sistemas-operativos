@@ -17,16 +17,8 @@ int main(int argc, char const *argv[]) {
     // Crear area de memoria para el semaforo compartido
     sem_t *semaforoCompartido;
     int area = shm_open("/SemaforoCompartido", O_CREAT | O_RDWR, 0666);
-    if (area == -1) {
-        perror("shm_open");
-        return 1;
-    }
     ftruncate(area, sizeof(sem_t));
     semaforoCompartido = mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, area, 0);
-    if (semaforoCompartido == MAP_FAILED) {
-        perror("mmap");
-        return 1;
-    }
 
     // Crear area de memoria para buffer compartido
     char *memoriaCompartida;

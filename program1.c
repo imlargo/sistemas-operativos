@@ -33,7 +33,7 @@ int main(int argc, char const *argv[]) {
         read(tuberia[0], &ruta, sizeof(ruta));
 
         if (access(ruta, X_OK) != 0) {
-            const char *mensaje = "No se encuentra el archivo a ejecutar";
+            const char *mensaje = "No se encuentra el archivo a ejecutar\n";
             write(tuberiaMensajes[1], mensaje, strlen(mensaje));
             sem_post(semaforo);
         }
@@ -42,7 +42,7 @@ int main(int argc, char const *argv[]) {
         sem_t *semaforoCompartido;
         int area = shm_open("/SemaforoCompartido", O_RDWR, 0666);
         if (area == -1) {
-            const char *mensaje = "Proceso p3 no parece estar en ejecución";
+            const char *mensaje = "Proceso p3 no parece estar en ejecución\n";
             write(tuberiaMensajes[1], mensaje, strlen(mensaje));
             sem_post(semaforo);
 
@@ -79,14 +79,16 @@ int main(int argc, char const *argv[]) {
         sem_post(semaforo);
         sleep(1);
 
-        munmap(memoriaCompartida, 4096);
-        shm_unlink("/memoriaCompartida");
-        munmap(semaforoCompartido, sizeof(sem_t));
-
         // Salir
         const char *salida = "exit";
         write(tuberiaMensajes[1], salida, strlen(salida));
         sem_post(semaforo);
+
+        // Liberar memoria
+        munmap(memoriaCompartida, 4096);
+        shm_unlink("/memoriaCompartida");
+        munmap(semaforoCompartido, sizeof(sem_t));
+        shm_unlink("/SemaforoCompartido");
 
     } else {
         // Proceso padre
@@ -115,16 +117,17 @@ int main(int argc, char const *argv[]) {
             if (strcmp(mensaje, "exit") == 0) {
                 break;
             }
-            printf("Mensaje recibido: %s\n", mensaje);
+            printf("Mensaje recibido: %s", mensaje);
         }
 
-        close(tuberia[0]);
-        close(tuberia[1]);
-        close(tuberiaMensajes[0]);
-        close(tuberiaMensajes[1]);
         sem_destroy(semaforo);
         munmap(semaforo, sizeof(sem_t));
     }
+
+    close(tuberia[0]);
+    close(tuberia[1]);
+    close(tuberiaMensajes[0]);
+    close(tuberiaMensajes[1]);
 
     return 0;
 }

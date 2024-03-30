@@ -12,13 +12,7 @@
 
 int main(int argc, char const *argv[]) {
 
-    shm_unlink("/SemaforoCompartido");
 
-    // Crear area de memoria para el semaforo compartido
-    sem_t *semaforoCompartido;
-    int area = shm_open("/SemaforoCompartido", O_CREAT | O_RDWR, 0666);
-    ftruncate(area, sizeof(sem_t));
-    semaforoCompartido = mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, area, 0);
 
     // Crear area de memoria para buffer compartido
     char *memoriaCompartida;
@@ -27,8 +21,14 @@ int main(int argc, char const *argv[]) {
     memoriaCompartida = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, areaMemoriaCompartida, 0);
 
     // Iniciar semaforo y esperar
-    sem_init(semaforoCompartido, 1, 0);
-    sem_wait(semaforoCompartido);
+    sem_unlink("/semaforoPr2");
+    sem_t *semaforoPr2;
+    semaforoPr2 = sem_open("/semaforoPr2", O_CREAT, 0666, 0);
+
+    sem_wait(semaforoPr2);
+
+    sem_t *semH;
+    semH = sem_open("/semaforoHijo", O_RDWR);
 
     // Leer la ruta del buffer compartido
     char ruta[4096];
@@ -50,11 +50,10 @@ int main(int argc, char const *argv[]) {
         char *mensaje = (char *)buffer;
 
         sprintf(memoriaCompartida, "%s", mensaje);
-        sem_post(semaforoCompartido);
+        sem_post(semH);
 
         // liberar toda la memoria
-        munmap(semaforoCompartido, sizeof(sem_t));
-        shm_unlink("/SemaforoCompartido");
+        sem_close(semaforoPr2);
 
     } else {
         // Proceso padre

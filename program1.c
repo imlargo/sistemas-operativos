@@ -37,12 +37,26 @@ int main(int argc, char const *argv[]) {
         const char *ruta;
 
         if (argc == 1) {
-            char *base = "/bin/uname";
-            printf("Uso: p1 %s\n", base);
-            ruta = base;
-        } else {
-            ruta = argv[1];
+            printf("Uso: p1 /ruta/al/ejecutable\n");
+
+            ruta = "exit";
+            write(tuberia[1], &ruta, sizeof(ruta));
+            sem_post(semH);
+
+            // Liberar memoria
+            sem_close(semH);
+            sem_close(semP);
+            sem_unlink("/semaforoPadre");
+
+            close(tuberia[0]);
+            close(tuberia[1]);
+            close(tuberiaMensajes[0]);
+            close(tuberiaMensajes[1]);
+
+            return 0;
         }
+
+        ruta = argv[1];
 
         write(tuberia[1], &ruta, sizeof(ruta));
         sem_post(semH);
@@ -87,6 +101,34 @@ int main(int argc, char const *argv[]) {
         // Intentar conectar con proceso 3 primero
         char *memoriaCompartida;
         int areaMemoriaCompartida = shm_open("/memoriaCompartida", O_RDWR, 0666);
+
+        if (strcmp(ruta, "exit") == 0) {
+            // liberar toda la memoria
+            if (areaMemoriaCompartida != -1) {
+                memoriaCompartida = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, areaMemoriaCompartida, 0);
+                
+                sem_t *semaforoPr2;
+                semaforoPr2 = sem_open("/semaforoPr2", O_RDWR);
+                sprintf(memoriaCompartida, "%s", "exit");
+
+                sem_post(semaforoPr2);
+                sem_close(semaforoPr2);
+
+                munmap(memoriaCompartida, 4096);
+            }
+
+            // Liberar memoria
+            sem_close(semH);
+            sem_close(semP);
+            sem_unlink("/semaforoHijo");
+
+            close(tuberia[0]);
+            close(tuberia[1]);
+            close(tuberiaMensajes[0]);
+            close(tuberiaMensajes[1]);
+
+            return 0;
+        }
 
         if (access(ruta, X_OK) != 0) {
             const char *mensaje = "No se encuentra el archivo a ejecutar\n";

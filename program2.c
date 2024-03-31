@@ -14,16 +14,16 @@ int main(int argc, char const *argv[]) {
 
     shm_unlink("/memoriaCompartida");
     char *memoriaCompartida;
-    int areaMemoriaCompartida = shm_open("/memoriaCompartida", O_CREAT | O_RDWR, 0666);
-    ftruncate(areaMemoriaCompartida, 4096);
-    memoriaCompartida = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, areaMemoriaCompartida, 0);
+    int areaCompartida = shm_open("/memoriaCompartida", O_CREAT | O_RDWR, 0666);
+    ftruncate(areaCompartida, 4096);
+    memoriaCompartida = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, areaCompartida, 0);
 
     // Iniciar semaforo y esperar
-    sem_unlink("/semaforoPr2");
-    sem_t *semaforoPr2;
-    semaforoPr2 = sem_open("/semaforoPr2", O_CREAT, 0666, 0);
+    sem_unlink("/semaforoP3");
+    sem_t *semaforoP3;
+    semaforoP3 = sem_open("/semaforoP3", O_CREAT, 0666, 0);
 
-    sem_wait(semaforoPr2);
+    sem_wait(semaforoP3);
 
     // Leer la ruta del buffer compartido
     char ruta[4096];
@@ -31,8 +31,8 @@ int main(int argc, char const *argv[]) {
 
     if (strcmp(ruta, "exit") == 0) {
         // liberar toda la memoria
-        sem_close(semaforoPr2);
-        sem_unlink("/semaforoPr2");
+        sem_close(semaforoP3);
+        sem_unlink("/semaforoP3");
         
         munmap(memoriaCompartida, 4096);
         shm_unlink("/memoriaCompartida");
@@ -42,52 +42,52 @@ int main(int argc, char const *argv[]) {
 
     printf("Ruta: %s\n", ruta);
 
-    sem_t *semH;
-    semH = sem_open("/semaforoHijo", O_RDWR);
+    sem_t *semaforoP2;
+    semaforoP2 = sem_open("/semaforoP2", O_RDWR);
 
-    int tuberiaSalida[2];
-    pipe(tuberiaSalida);
+    int tuberia[2];
+    pipe(tuberia);
 
     pid_t pid = fork();
 
     if (pid == 0) {
         // Proceso hijo
-        close(tuberiaSalida[1]);
+        close(tuberia[1]);
 
         int buffer[255];
-        read(tuberiaSalida[0], buffer, sizeof(buffer));
+        read(tuberia[0], buffer, sizeof(buffer));
         char *mensaje = (char *)buffer;
 
         // Enviar datos a memoria y despertar proceso 1
         sprintf(memoriaCompartida, "%s", mensaje);
-        sem_post(semH);
-        sem_wait(semaforoPr2);
+        sem_post(semaforoP2);
+        sem_wait(semaforoP3);
 
         // liberar toda la memoria
-        sem_close(semH);
-        sem_close(semaforoPr2);
-        sem_unlink("/semaforoPr2");
+        sem_close(semaforoP2);
+        sem_close(semaforoP3);
+        sem_unlink("/semaforoP3");
         
         munmap(memoriaCompartida, 4096);
         shm_unlink("/memoriaCompartida");
 
-        close(tuberiaSalida[0]);
-        close(tuberiaSalida[1]);
+        close(tuberia[0]);
+        close(tuberia[1]);
 
     } else {
         // Proceso padre
-        close(tuberiaSalida[0]);
-        sem_close(semH);
-        sem_close(semaforoPr2);
+        close(tuberia[0]);
+        sem_close(semaforoP2);
+        sem_close(semaforoP3);
 
-        dup2(tuberiaSalida[1], STDOUT_FILENO);
+        dup2(tuberia[1], STDOUT_FILENO);
         execl(ruta, ruta, (char *) NULL);
 
         // SI el programa falla:
         printf("Error al ejecutar el comando\n");
         
-        close(tuberiaSalida[0]);
-        close(tuberiaSalida[1]);
+        close(tuberia[0]);
+        close(tuberia[1]);
         return 0;
     }
 

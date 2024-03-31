@@ -14,25 +14,39 @@
 
 int main(int argc, char const *argv[]) {
 
-    int tuberia[2], tuberiaMensajes[2];
-    pipe(tuberia);
-    pipe(tuberiaMensajes);
+    int tuberiaEnvio[2], tuberiaRecepcion[2];
+    if (pipe(tuberiaEnvio) == -1) {
+        perror("Error en programa 1 al crear tuberia");
+        return -1;
+    }
+    if (pipe(tuberiaRecepcion) == -1) {
+        perror("Error en programa 1 al crear tuberia");
+        return -1;
+    }
 
     // Crear semáforos
-    sem_unlink("/semaforoPadre");
-    sem_t *semP;
-    semP = sem_open("/semaforoPadre", O_CREAT, 0666, 0);
+    sem_unlink("/semaforoP1");
+    sem_t *semaforoP1;
+    semaforoP1 = sem_open("/semaforoP1", O_CREAT, 0666, 0);
+    if (semaforoP1 == SEM_FAILED) {
+        perror("Error en programa 1 al intentar crear semáforo");
+        return -1;
+    }
 
-    sem_unlink("/semaforoHijo");
-    sem_t *semH;
-    semH = sem_open("/semaforoHijo", O_CREAT, 0666, 0);
+    sem_unlink("/semaforoP2");
+    sem_t *semaforoP2;
+    semaforoP2 = sem_open("/semaforoP2", O_CREAT, 0666, 0);
+    if (semaforoP2 == SEM_FAILED) {
+        perror("Error en programa 1 al intentar crear semáforo");
+        return -1;
+    }
 
     pid_t pid = fork();
 
     if (pid > 0) {
         // Proceso padre
-        close(tuberia[0]);
-        close(tuberiaMensajes[1]);
+        close(tuberiaEnvio[0]);
+        close(tuberiaRecepcion[1]);
 
         const char *ruta;
 
@@ -40,196 +54,196 @@ int main(int argc, char const *argv[]) {
             printf("Uso: p1 /ruta/al/ejecutable\n");
 
             ruta = "exit";
-            write(tuberia[1], &ruta, sizeof(ruta));
-            sem_post(semH);
+            write(tuberiaEnvio[1], &ruta, sizeof(ruta));
+            sem_post(semaforoP2);
 
             // Liberar memoria
-            sem_close(semH);
-            sem_close(semP);
-            sem_unlink("/semaforoPadre");
+            sem_close(semaforoP2);
+            sem_close(semaforoP1);
+            sem_unlink("/semaforoP1");
 
-            close(tuberia[0]);
-            close(tuberia[1]);
-            close(tuberiaMensajes[0]);
-            close(tuberiaMensajes[1]);
+            close(tuberiaEnvio[0]);
+            close(tuberiaEnvio[1]);
+            close(tuberiaRecepcion[0]);
+            close(tuberiaRecepcion[1]);
 
             return 0;
         }
 
         ruta = argv[1];
 
-        write(tuberia[1], &ruta, sizeof(ruta));
-        sem_post(semH);
+        write(tuberiaEnvio[1], &ruta, sizeof(ruta));
+        sem_post(semaforoP2);
 
         while (1) {
-            sem_wait(semP);
+            sem_wait(semaforoP1);
 
             char mensaje[4096];
-            int bytesRead = read(tuberiaMensajes[0], mensaje, sizeof(mensaje) - 1);
+            int bytesRead = read(tuberiaRecepcion[0], mensaje, sizeof(mensaje) - 1);
             if (bytesRead >= 0) {
                 mensaje[bytesRead] = '\0';
             }
             if (strcmp(mensaje, "exit") == 0) {
-                sem_post(semH);
+                sem_post(semaforoP2);
                 break;
             }
             printf("Mensaje recibido: %s", mensaje);
             
-            sem_post(semH);
+            sem_post(semaforoP2);
         }
 
-        sem_close(semH);
-        sem_close(semP);
-        sem_unlink("/semaforoPadre");
+        sem_close(semaforoP2);
+        sem_close(semaforoP1);
+        sem_unlink("/semaforoP1");
 
-        close(tuberia[0]);
-        close(tuberia[1]);
-        close(tuberiaMensajes[0]);
-        close(tuberiaMensajes[1]);
+        close(tuberiaEnvio[0]);
+        close(tuberiaEnvio[1]);
+        close(tuberiaRecepcion[0]);
+        close(tuberiaRecepcion[1]);
 
     } else if (pid == 0) {
         // Proceso hijo
         
-        close(tuberia[1]);
-        close(tuberiaMensajes[0]);
+        close(tuberiaEnvio[1]);
+        close(tuberiaRecepcion[0]);
 
-        sem_wait(semH);
+        sem_wait(semaforoP2);
 
         char* ruta;
-        read(tuberia[0], &ruta, sizeof(ruta));
+        read(tuberiaEnvio[0], &ruta, sizeof(ruta));
 
         // Intentar conectar con proceso 3 primero
         char *memoriaCompartida;
-        int areaMemoriaCompartida = shm_open("/memoriaCompartida", O_RDWR, 0666);
+        int areaCompartida = shm_open("/memoriaCompartida", O_RDWR, 0666);
 
         if (strcmp(ruta, "exit") == 0) {
             // liberar toda la memoria
-            if (areaMemoriaCompartida != -1) {
-                memoriaCompartida = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, areaMemoriaCompartida, 0);
+            if (areaCompartida != -1) {
+                memoriaCompartida = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, areaCompartida, 0);
                 
-                sem_t *semaforoPr2;
-                semaforoPr2 = sem_open("/semaforoPr2", O_RDWR);
+                sem_t *semaforoP3;
+                semaforoP3 = sem_open("/semaforoP3", O_RDWR);
                 sprintf(memoriaCompartida, "%s", "exit");
 
-                sem_post(semaforoPr2);
-                sem_close(semaforoPr2);
+                sem_post(semaforoP3);
+                sem_close(semaforoP3);
 
                 munmap(memoriaCompartida, 4096);
             }
 
             // Liberar memoria
-            sem_close(semH);
-            sem_close(semP);
-            sem_unlink("/semaforoHijo");
+            sem_close(semaforoP2);
+            sem_close(semaforoP1);
+            sem_unlink("/semaforoP2");
 
-            close(tuberia[0]);
-            close(tuberia[1]);
-            close(tuberiaMensajes[0]);
-            close(tuberiaMensajes[1]);
+            close(tuberiaEnvio[0]);
+            close(tuberiaEnvio[1]);
+            close(tuberiaRecepcion[0]);
+            close(tuberiaRecepcion[1]);
 
             return 0;
         }
 
         if (access(ruta, X_OK) != 0) {
             const char *mensaje = "No se encuentra el archivo a ejecutar\n";
-            write(tuberiaMensajes[1], mensaje, strlen(mensaje));
-            sem_post(semP);
-            sem_wait(semH);
+            write(tuberiaRecepcion[1], mensaje, strlen(mensaje));
+            sem_post(semaforoP1);
+            sem_wait(semaforoP2);
 
             const char *salidaM = "exit";
-            write(tuberiaMensajes[1], salidaM, strlen(salidaM));
-            sem_post(semP);
-            sem_wait(semH);
+            write(tuberiaRecepcion[1], salidaM, strlen(salidaM));
+            sem_post(semaforoP1);
+            sem_wait(semaforoP2);
 
-            if (areaMemoriaCompartida != -1) {
-                memoriaCompartida = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, areaMemoriaCompartida, 0);
+            if (areaCompartida != -1) {
+                memoriaCompartida = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, areaCompartida, 0);
                 
-                sem_t *semaforoPr2;
-                semaforoPr2 = sem_open("/semaforoPr2", O_RDWR);
+                sem_t *semaforoP3;
+                semaforoP3 = sem_open("/semaforoP3", O_RDWR);
                 sprintf(memoriaCompartida, "%s", "exit");
 
-                sem_post(semaforoPr2);
-                sem_close(semaforoPr2);
+                sem_post(semaforoP3);
+                sem_close(semaforoP3);
 
                 munmap(memoriaCompartida, 4096);
             }
 
             // Liberar memoria
-            sem_close(semH);
-            sem_close(semP);
-            sem_unlink("/semaforoHijo");
+            sem_close(semaforoP2);
+            sem_close(semaforoP1);
+            sem_unlink("/semaforoP2");
 
-            close(tuberia[0]);
-            close(tuberia[1]);
-            close(tuberiaMensajes[0]);
-            close(tuberiaMensajes[1]);
+            close(tuberiaEnvio[0]);
+            close(tuberiaEnvio[1]);
+            close(tuberiaRecepcion[0]);
+            close(tuberiaRecepcion[1]);
             return 0;
         }
         
-        if (areaMemoriaCompartida == -1) {
+        if (areaCompartida == -1) {
             const char *mensaje = "Proceso p3 no parcece estar en ejecución\n";
-            write(tuberiaMensajes[1], mensaje, strlen(mensaje));
-            sem_post(semP);
-            sem_wait(semH);
+            write(tuberiaRecepcion[1], mensaje, strlen(mensaje));
+            sem_post(semaforoP1);
+            sem_wait(semaforoP2);
             
             const char *salidaM = "exit";
-            write(tuberiaMensajes[1], salidaM, strlen(salidaM));
-            sem_post(semP);
-            sem_wait(semH);
+            write(tuberiaRecepcion[1], salidaM, strlen(salidaM));
+            sem_post(semaforoP1);
+            sem_wait(semaforoP2);
 
             // Liberar memoria
-            sem_close(semH);
-            sem_close(semP);
-            sem_unlink("/semaforoHijo");
+            sem_close(semaforoP2);
+            sem_close(semaforoP1);
+            sem_unlink("/semaforoP2");
 
-            close(tuberia[0]);
-            close(tuberia[1]);
-            close(tuberiaMensajes[0]);
-            close(tuberiaMensajes[1]);
+            close(tuberiaEnvio[0]);
+            close(tuberiaEnvio[1]);
+            close(tuberiaRecepcion[0]);
+            close(tuberiaRecepcion[1]);
             return 0;
         }
-	    memoriaCompartida = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, areaMemoriaCompartida, 0);
+	    memoriaCompartida = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, areaCompartida, 0);
 
-        sem_t *semaforoPr2;
-        semaforoPr2 = sem_open("/semaforoPr2", O_RDWR);
+        sem_t *semaforoP3;
+        semaforoP3 = sem_open("/semaforoP3", O_RDWR);
         
         // Escribir la ruta en memoria compartida
         sprintf(memoriaCompartida, "%s", ruta);
 
         // Descongelar proceso 3
-        sem_post(semaforoPr2);
+        sem_post(semaforoP3);
 
         // Esperar y leer la salida del proceso 3
-        sem_wait(semH);
+        sem_wait(semaforoP2);
 
         char buffer[4096];
         strcpy(buffer, memoriaCompartida);
-        write(tuberiaMensajes[1], buffer, strlen(buffer));
+        write(tuberiaRecepcion[1], buffer, strlen(buffer));
 
         // Esperar que el proceso padre termine de imprimir el resultado
-        sem_post(semP);
-        sem_wait(semH);
+        sem_post(semaforoP1);
+        sem_wait(semaforoP2);
 
         // Salir
         const char *salida = "exit";
-        write(tuberiaMensajes[1], salida, strlen(salida));
-        sem_post(semP);
-        sem_wait(semH);
+        write(tuberiaRecepcion[1], salida, strlen(salida));
+        sem_post(semaforoP1);
+        sem_wait(semaforoP2);
 
         // Enviar señal a proceso 3 para eliminar memoria
-        sem_post(semaforoPr2);
-        sem_close(semaforoPr2);
+        sem_post(semaforoP3);
+        sem_close(semaforoP3);
 
-        sem_close(semH);
-        sem_close(semP);
-        sem_unlink("/semaforoHijo");
+        sem_close(semaforoP2);
+        sem_close(semaforoP1);
+        sem_unlink("/semaforoP2");
 
         munmap(memoriaCompartida, 4096);
 
-        close(tuberia[0]);
-        close(tuberia[1]);
-        close(tuberiaMensajes[0]);
-        close(tuberiaMensajes[1]);
+        close(tuberiaEnvio[0]);
+        close(tuberiaEnvio[1]);
+        close(tuberiaRecepcion[0]);
+        close(tuberiaRecepcion[1]);
     }
 
     return 0;

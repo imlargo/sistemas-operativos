@@ -18,13 +18,28 @@ int main(int argc, char const *argv[]) {
     shm_unlink("/memoriaCompartida");
     char *memoriaCompartida;
     int areaCompartida = shm_open("/memoriaCompartida", O_CREAT | O_RDWR, 0666);
-    ftruncate(areaCompartida, 4096);
+    if (areaCompartida == -1) {
+        perror("Error al crear memoria compartida");
+        return -1;
+    }
+    if (ftruncate(areaCompartida, 4096) == -1) {
+        perror("Error al truncar memoria compartida");
+        return -1;
+    }
     memoriaCompartida = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, areaCompartida, 0);
+    if (memoriaCompartida == MAP_FAILED) {
+        perror("Error al mapear memoria compartida");
+        return -1;
+    }
 
     // Iniciar semáforo para sincronización
     sem_unlink("/semaforoP3");
     sem_t *semaforoP3;
     semaforoP3 = sem_open("/semaforoP3", O_CREAT, 0666, 0);
+    if (semaforoP3 == SEM_FAILED) {
+        perror("Error al abrir semáforo");
+        return -1;
+    }
 
     // Esperar señal de proceso 2 para continuar
     sem_wait(semaforoP3);
@@ -51,10 +66,17 @@ int main(int argc, char const *argv[]) {
     // Conectar con el semáforo del proceso 2
     sem_t *semaforoP2;
     semaforoP2 = sem_open("/semaforoP2", O_RDWR);
+    if (semaforoP2 == SEM_FAILED) {
+        perror("Error al abrir semáforo");
+        return -1;
+    }
 
     // Crear tubería para redirigir salida de programa a ejecutar
     int tuberia[2];
-    pipe(tuberia);
+    if (pipe(tuberia) == -1) {
+        perror("Error al crear tubería");
+        return -1;
+    }
 
     pid_t pid = fork();
 
@@ -92,17 +114,19 @@ int main(int argc, char const *argv[]) {
         sem_close(semaforoP3);
 
         // Redirigir salida del programa a ejecutar mediante tubería
-        dup2(tuberia[1], STDOUT_FILENO);
+        if (dup2(tuberia[1], STDOUT_FILENO) == -1) {
+            perror("Error al redirigir salida");
+            return -1;
+        }
 
         // Ejecutar programa con la ruta recibida
-        execl(ruta, ruta, (char *) NULL);
+        if (execl(ruta, ruta, (char *) NULL) == -1) {
+            perror("Error al ejecutar el comando");
 
-        // Si el programa falla:
-        printf("Error al ejecutar el comando\n");
-        
-        close(tuberia[0]);
-        close(tuberia[1]);
-        return 0;
+            close(tuberia[0]);
+            close(tuberia[1]);
+            return -1;
+        }
     }
 
     return 0;

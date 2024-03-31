@@ -25,13 +25,25 @@ int main(int argc, char const *argv[]) {
 
     sem_wait(semaforoPr2);
 
-    sem_t *semH;
-    semH = sem_open("/semaforoHijo", O_RDWR);
-
     // Leer la ruta del buffer compartido
     char ruta[4096];
     strcpy(ruta, memoriaCompartida);
+
+    if (strcmp(ruta, "exit") == 0) {
+        // liberar toda la memoria
+        sem_close(semaforoPr2);
+        sem_unlink("/semaforoPr2");
+        
+        munmap(memoriaCompartida, 4096);
+        shm_unlink("/memoriaCompartida");
+
+        return 0;
+    }
+
     printf("Ruta: %s\n", ruta);
+
+    sem_t *semH;
+    semH = sem_open("/semaforoHijo", O_RDWR);
 
     int tuberiaSalida[2];
     pipe(tuberiaSalida);

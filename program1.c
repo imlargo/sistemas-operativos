@@ -84,6 +84,10 @@ int main(int argc, char const *argv[]) {
         char* ruta;
         read(tuberia[0], &ruta, sizeof(ruta));
 
+        // Intentar conectar con proceso 3 primero
+        char *memoriaCompartida;
+        int areaMemoriaCompartida = shm_open("/memoriaCompartida", O_RDWR, 0666);
+
         if (access(ruta, X_OK) != 0) {
             const char *mensaje = "No se encuentra el archivo a ejecutar\n";
             write(tuberiaMensajes[1], mensaje, strlen(mensaje));
@@ -94,6 +98,19 @@ int main(int argc, char const *argv[]) {
             write(tuberiaMensajes[1], salidaM, strlen(salidaM));
             sem_post(semP);
             sem_wait(semH);
+
+            if (areaMemoriaCompartida != -1) {
+                memoriaCompartida = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, areaMemoriaCompartida, 0);
+                
+                sem_t *semaforoPr2;
+                semaforoPr2 = sem_open("/semaforoPr2", O_RDWR);
+                sprintf(memoriaCompartida, "%s", "exit");
+
+                sem_post(semaforoPr2);
+                sem_close(semaforoPr2);
+
+                munmap(memoriaCompartida, 4096);
+            }
 
             // Liberar memoria
             sem_close(semH);
@@ -106,10 +123,7 @@ int main(int argc, char const *argv[]) {
             close(tuberiaMensajes[1]);
             return 0;
         }
-
-        // Intentar conectar con proceso 3
-        char *memoriaCompartida;
-        int areaMemoriaCompartida = shm_open("/memoriaCompartida", O_RDWR, 0666);
+        
         if (areaMemoriaCompartida == -1) {
             const char *mensaje = "Proceso p3 no parcece estar en ejecución\n";
             write(tuberiaMensajes[1], mensaje, strlen(mensaje));

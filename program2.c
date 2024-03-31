@@ -59,14 +59,23 @@ int main(int argc, char const *argv[]) {
         munmap(memoriaCompartida, 4096);
         shm_unlink("/memoriaCompartida");
 
+        close(tuberiaSalida[0]);
+        close(tuberiaSalida[1]);
+
     } else {
         // Proceso padre
         close(tuberiaSalida[0]);
+        sem_close(semH);
+        sem_close(semaforoPr2);
 
         dup2(tuberiaSalida[1], STDOUT_FILENO);
         execl(ruta, ruta, (char *) NULL);
 
+        // SI el programa falla:
         printf("Error al ejecutar el comando\n");
+        
+        close(tuberiaSalida[0]);
+        close(tuberiaSalida[1]);
         return 0;
     }
 

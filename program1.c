@@ -64,6 +64,11 @@ int main(int argc, char const *argv[]) {
             sem_post(semH);
         }
 
+        sem_close(semH);
+        sem_close(semP);
+
+        sem_unlink("/semaforoPadre");
+
     } else if (pid == 0) {
         // Proceso hijo
         
@@ -128,7 +133,6 @@ int main(int argc, char const *argv[]) {
         // Salir
         const char *salida = "exit";
         write(tuberiaMensajes[1], salida, strlen(salida));
-        
         sem_post(semP);
         sem_wait(semH);
 
@@ -136,7 +140,10 @@ int main(int argc, char const *argv[]) {
         sem_post(semaforoPr2);
         sem_close(semaforoPr2);
 
-        // Liberar memoria
+        sem_close(semH);
+        sem_close(semP);
+        sem_unlink("/semaforoHijo");
+
         munmap(memoriaCompartida, 4096);
     }
 
@@ -144,8 +151,5 @@ int main(int argc, char const *argv[]) {
     close(tuberia[1]);
     close(tuberiaMensajes[0]);
     close(tuberiaMensajes[1]);
-    sem_close(semP);
-    sem_close(semH);
-
     return 0;
 }

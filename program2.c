@@ -38,8 +38,7 @@ int main(int argc, char const *argv[]) {
 
     pid_t pid = fork();
 
-    if (pid == 0)
-    {
+    if (pid == 0) {
         // Proceso hijo
         close(tuberiaSalida[1]);
 
@@ -53,6 +52,7 @@ int main(int argc, char const *argv[]) {
         sem_wait(semaforoPr2);
 
         // liberar toda la memoria
+        sem_close(semH);
         sem_close(semaforoPr2);
         sem_unlink("/semaforoPr2");
         

@@ -53,7 +53,7 @@ int main(int argc, char const *argv[]) {
             char mensaje[4096];
             int bytesRead = read(tuberiaMensajes[0], mensaje, sizeof(mensaje) - 1);
             if (bytesRead >= 0) {
-                mensaje[bytesRead] = '\0'; // Aseguramos que el buffer sea una cadena válida en C
+                mensaje[bytesRead] = '\0';
             }
             if (strcmp(mensaje, "exit") == 0) {
                 sem_post(semH);
@@ -66,8 +66,12 @@ int main(int argc, char const *argv[]) {
 
         sem_close(semH);
         sem_close(semP);
-
         sem_unlink("/semaforoPadre");
+
+        close(tuberia[0]);
+        close(tuberia[1]);
+        close(tuberiaMensajes[0]);
+        close(tuberiaMensajes[1]);
 
     } else if (pid == 0) {
         // Proceso hijo
@@ -90,6 +94,16 @@ int main(int argc, char const *argv[]) {
             write(tuberiaMensajes[1], salidaM, strlen(salidaM));
             sem_post(semP);
             sem_wait(semH);
+
+            // Liberar memoria
+            sem_close(semH);
+            sem_close(semP);
+            sem_unlink("/semaforoHijo");
+
+            close(tuberia[0]);
+            close(tuberia[1]);
+            close(tuberiaMensajes[0]);
+            close(tuberiaMensajes[1]);
             return 0;
         }
 
@@ -106,6 +120,16 @@ int main(int argc, char const *argv[]) {
             write(tuberiaMensajes[1], salidaM, strlen(salidaM));
             sem_post(semP);
             sem_wait(semH);
+
+            // Liberar memoria
+            sem_close(semH);
+            sem_close(semP);
+            sem_unlink("/semaforoHijo");
+
+            close(tuberia[0]);
+            close(tuberia[1]);
+            close(tuberiaMensajes[0]);
+            close(tuberiaMensajes[1]);
             return 0;
         }
 	    memoriaCompartida = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, areaMemoriaCompartida, 0);
@@ -145,11 +169,12 @@ int main(int argc, char const *argv[]) {
         sem_unlink("/semaforoHijo");
 
         munmap(memoriaCompartida, 4096);
+
+        close(tuberia[0]);
+        close(tuberia[1]);
+        close(tuberiaMensajes[0]);
+        close(tuberiaMensajes[1]);
     }
 
-    close(tuberia[0]);
-    close(tuberia[1]);
-    close(tuberiaMensajes[0]);
-    close(tuberiaMensajes[1]);
     return 0;
 }

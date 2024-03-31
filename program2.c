@@ -67,6 +67,7 @@ int main(int argc, char const *argv[]) {
         execl(ruta, ruta, (char *) NULL);
 
         printf("Error al ejecutar el comando\n");
+        return 0;
     }
 
     return 0;

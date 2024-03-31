@@ -12,9 +12,7 @@
 
 int main(int argc, char const *argv[]) {
 
-
-
-    // Crear area de memoria para buffer compartido
+    shm_unlink("/memoriaCompartida");
     char *memoriaCompartida;
     int areaMemoriaCompartida = shm_open("/memoriaCompartida", O_CREAT | O_RDWR, 0666);
     ftruncate(areaMemoriaCompartida, 4096);
@@ -49,11 +47,17 @@ int main(int argc, char const *argv[]) {
         read(tuberiaSalida[0], buffer, sizeof(buffer));
         char *mensaje = (char *)buffer;
 
+        // Enviar datos a memoria y despertar proceso 1
         sprintf(memoriaCompartida, "%s", mensaje);
         sem_post(semH);
+        sem_wait(semaforoPr2);
 
         // liberar toda la memoria
         sem_close(semaforoPr2);
+        sem_unlink("/semaforoPr2");
+        
+        munmap(memoriaCompartida, 4096);
+        shm_unlink("/memoriaCompartida");
 
     } else {
         // Proceso padre

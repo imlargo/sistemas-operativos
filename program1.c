@@ -56,6 +56,7 @@ int main(int argc, char const *argv[]) {
                 mensaje[bytesRead] = '\0'; // Aseguramos que el buffer sea una cadena válida en C
             }
             if (strcmp(mensaje, "exit") == 0) {
+                sem_post(semH);
                 break;
             }
             printf("Mensaje recibido: %s", mensaje);
@@ -84,13 +85,13 @@ int main(int argc, char const *argv[]) {
             write(tuberiaMensajes[1], salidaM, strlen(salidaM));
             sem_post(semP);
             sem_wait(semH);
+            return 0;
         }
 
         // Intentar conectar con proceso 3
-        sem_t *semaforoPr2;
-        semaforoPr2 = sem_open("/semaforoPr2", O_RDWR);
-
-        if (semaforoPr2 == SEM_FAILED) {
+        char *memoriaCompartida;
+        int areaMemoriaCompartida = shm_open("/memoriaCompartida", O_RDWR, 0666);
+        if (areaMemoriaCompartida == -1) {
             const char *mensaje = "Proceso p3 no parcece estar en ejecución\n";
             write(tuberiaMensajes[1], mensaje, strlen(mensaje));
             sem_post(semP);
@@ -102,13 +103,12 @@ int main(int argc, char const *argv[]) {
             sem_wait(semH);
             return 0;
         }
-
-        // Enviar ruta a proceso 3
-        char *memoriaCompartida;
-        int areaMemoriaCompartida = shm_open("/memoriaCompartida", O_RDWR, 0666);
 	    memoriaCompartida = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, areaMemoriaCompartida, 0);
 
-        // Escribir en memoria compartida
+        sem_t *semaforoPr2;
+        semaforoPr2 = sem_open("/semaforoPr2", O_RDWR);
+        
+        // Escribir la ruta en memoria compartida
         sprintf(memoriaCompartida, "%s", ruta);
 
         // Descongelar proceso 3
@@ -128,12 +128,16 @@ int main(int argc, char const *argv[]) {
         // Salir
         const char *salida = "exit";
         write(tuberiaMensajes[1], salida, strlen(salida));
+        
         sem_post(semP);
         sem_wait(semH);
 
+        // Enviar señal a proceso 3 para eliminar memoria
+        sem_post(semaforoPr2);
+        sem_close(semaforoPr2);
+
         // Liberar memoria
         munmap(memoriaCompartida, 4096);
-        shm_unlink("/memoriaCompartida");
     }
 
     close(tuberia[0]);

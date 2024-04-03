@@ -29,6 +29,9 @@ int main(int argc, char const *argv[]) {
     memoriaCompartida = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, areaCompartida, 0);
     if (memoriaCompartida == MAP_FAILED) {
         perror("Error al mapear memoria compartida");
+
+        // Liberar recursos
+        shm_unlink("/memoriaCompartida");
         return -1;
     }
 
@@ -38,6 +41,11 @@ int main(int argc, char const *argv[]) {
     semaforoP3 = sem_open("/semaforoP3", O_CREAT, 0666, 0);
     if (semaforoP3 == SEM_FAILED) {
         perror("Error al abrir semáforo");
+
+        // Liberar recursos
+        munmap(memoriaCompartida, 4096);
+        shm_unlink("/memoriaCompartida");
+        sem_unlink("/semaforoP3");
         return -1;
     }
 
@@ -68,6 +76,14 @@ int main(int argc, char const *argv[]) {
     semaforoP2 = sem_open("/semaforoP2", O_RDWR);
     if (semaforoP2 == SEM_FAILED) {
         perror("Error al abrir semáforo");
+
+        // Liberar recursos
+        sem_close(semaforoP3);
+        sem_unlink("/semaforoP3");
+
+        munmap(memoriaCompartida, 4096);
+        shm_unlink("/memoriaCompartida");
+
         return -1;
     }
 
@@ -75,6 +91,15 @@ int main(int argc, char const *argv[]) {
     int tuberia[2];
     if (pipe(tuberia) == -1) {
         perror("Error al crear tubería");
+
+        // Liberar recursos
+        sem_close(semaforoP3);
+        sem_close(semaforoP2);
+        sem_unlink("/semaforoP3");
+
+        munmap(memoriaCompartida, 4096);
+        shm_unlink("/memoriaCompartida");
+
         return -1;
     }
 

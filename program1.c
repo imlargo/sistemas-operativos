@@ -31,6 +31,11 @@ int main(int argc, char const *argv[]) {
     semaforoP1 = sem_open("/semaforoP1", O_CREAT, 0666, 0);
     if (semaforoP1 == SEM_FAILED) {
         perror("Error en programa 1 al intentar crear semáforo");
+
+        close(tuberiaEnvio[0]);
+        close(tuberiaEnvio[1]);
+        close(tuberiaRecepcion[0]);
+        close(tuberiaRecepcion[1]);
         return -1;
     }
     
@@ -40,10 +45,32 @@ int main(int argc, char const *argv[]) {
     semaforoP2 = sem_open("/semaforoP2", O_CREAT, 0666, 0);
     if (semaforoP2 == SEM_FAILED) {
         perror("Error en programa 1 al intentar crear semáforo");
+
+        close(tuberiaEnvio[0]);
+        close(tuberiaEnvio[1]);
+        close(tuberiaRecepcion[0]);
+        close(tuberiaRecepcion[1]);
+
+        sem_close(semaforoP1);
+        sem_unlink("/semaforoP1");
         return -1;
     }
 
     pid_t pid = fork();
+
+    if (pid < 0) {
+        perror("Error al crear proceso hijo con fork()");
+        close(tuberiaEnvio[0]);
+        close(tuberiaEnvio[1]);
+        close(tuberiaRecepcion[0]);
+        close(tuberiaRecepcion[1]);
+
+        sem_close(semaforoP2);
+        sem_close(semaforoP1);
+        sem_unlink("/semaforoP1");
+        sem_unlink("/semaforoP2");
+        return -1;
+    }
 
     if (pid > 0) {
         // Proceso padre (PROCESO #1)
@@ -99,7 +126,6 @@ int main(int argc, char const *argv[]) {
             
             sem_post(semaforoP2);
         }
-
 
         // Liberar recursos
         sem_close(semaforoP2);
@@ -177,7 +203,6 @@ int main(int argc, char const *argv[]) {
             write(tuberiaRecepcion[1], salidaM, strlen(salidaM));
             sem_post(semaforoP1);
             sem_wait(semaforoP2);
-            
 
             //  Enviar señal de salida al proceso 3 en caso de que este en ejecución para que libere los recursos
             if (areaCompartida != -1) {
@@ -234,6 +259,25 @@ int main(int argc, char const *argv[]) {
 
         // Mapear memoria compartida y conectar con semáforo del proceso 3
 	    memoriaCompartida = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, areaCompartida, 0);
+
+        if (memoriaCompartida == MAP_FAILED) {
+            perror("Error al mapear memoria compartida");
+
+            close(tuberiaEnvio[0]);
+            close(tuberiaEnvio[1]);
+            close(tuberiaRecepcion[0]);
+            close(tuberiaRecepcion[1]);
+
+            sem_close(semaforoP1);
+            sem_close(semaforoP2);
+            sem_unlink("/semaforoP1");
+            sem_unlink("/semaforoP2");
+
+            shm_unlink("/memoriaCompartida");
+
+            return -1;
+        }
+
         sem_t *semaforoP3;
         semaforoP3 = sem_open("/semaforoP3", O_RDWR);
         

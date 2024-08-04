@@ -4,5 +4,5 @@
 
 Compilacion:
 ```
-gcc -pthread -o program1 program1.c -lrt && gcc -pthread -o program2 program2.c -lrt
+gcc -pthread -o programa-1 programa-1.c -lrt && gcc -pthread -o programa-2 programa-2.c -lrt
 ```

@@ -10,8 +10,6 @@
 #include <sys/stat.h>
 #include <sys/shm.h>
 
-// gcc -pthread -o p1 p1.c -lpthread -lrt
-
 int main(int argc, char const *argv[]) {
 
     // Crear tuberias para envío y recepción de mensajes entre proceso 1 y 2
@@ -26,6 +24,7 @@ int main(int argc, char const *argv[]) {
     }
 
     sem_unlink("/semaforoP1");
+
     // Crear semáforo para proceso 1
     sem_t *semaforoP1;
     semaforoP1 = sem_open("/semaforoP1", O_CREAT, 0666, 0);
@@ -79,7 +78,7 @@ int main(int argc, char const *argv[]) {
 
         const char *ruta;
 
-        // Verificar si solo se le pasó un argumento
+        // Verificar si se le pasó un comando al programa
         if (argc == 1) {
             printf("Uso: p1 /ruta/al/ejecutable\n");
 
@@ -176,7 +175,6 @@ int main(int argc, char const *argv[]) {
             }
 
             // Liberar recursos
-
             sem_close(semaforoP2);
             sem_close(semaforoP1);
             sem_unlink("/semaforoP2");

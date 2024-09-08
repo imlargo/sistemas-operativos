@@ -169,23 +169,25 @@ void logMensaje(int direccion_virtual, int esMiss, int pagina, int desplazamient
     printf("\n");
 }
 
-void iniciarContador(struct timespec *start) {
+void iniciarContador(struct timespec *start)
+{
     clock_gettime(CLOCK_MONOTONIC, start);
 }
 
-void finalizarContador(struct timespec *end) {
+void finalizarContador(struct timespec *end)
+{
     clock_gettime(CLOCK_MONOTONIC, end);
 }
 
-double calcularDuracion(struct timespec *start, struct timespec *end) {
+double calcularDuracion(struct timespec *start, struct timespec *end)
+{
 
     long seconds = end->tv_sec - start->tv_sec;
     long nanoseconds = end->tv_nsec - start->tv_nsec;
-    double elapsed = seconds + nanoseconds*1e-9;
+    double elapsed = seconds + nanoseconds * 1e-9;
 
     return elapsed;
 }
-
 
 int main()
 {
@@ -201,22 +203,19 @@ int main()
     while (1)
     {
 
-        /*
+        char *input = malloc(100 * sizeof(char));
+        printf("Ingrese dirección virtual: ");
+        scanf("%99s", input);
 
-            char *input;
-            printf("Ingrese dirección virtual: ");
-            scanf("%s", input);
+        if (input[0] == 's')
+        {
+            printf("Saliendo...\n");
+            free(input);
+            break;
+        }
 
-            if (input[0] == 's')
-            {
-                printf("Saliendo...\n");
-                break;
-            }
-        */
-
-        int direccion_virtual = 19986; // atoi(input);
+        int direccion_virtual = atoi(input);
         printf("Dirección virtual: %d\n\n", direccion_virtual);
-
         // Ingrese dirección virtual: 19986
         // TLB desde 0x00401251 hasta 0x004014D6
 
@@ -229,15 +228,13 @@ int main()
         esMiss = 1;
         direccion_reemplazo = -1;
 
-
         finalizarContador(&end);
         double tiempo = calcularDuracion(&start, &end);
-
 
         logMensaje(direccion_virtual, esMiss, pagina, desplazamiento, direccion_reemplazo, tiempo);
 
         free(direccionBinario);
-        break;
+        free(input);
     }
 
     return 0;

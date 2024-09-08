@@ -26,9 +26,15 @@ los conceptos explicados en clase.
 
 #define BILLION 1000000000L
 
+int sizeBits = 32;          // 2 ^ 32 -> m = 32 -> 4G
+int sizeBytesPagina = 4096; // 4096 bytes -> 2 ^ 12 -> n = 12
+
+int valueM = 32;
+int valueN = 12;
+
 char *decimalToBinary(int num)
 {
-    int INT_SIZE = 8; // sizeof(int) * 8;
+    int INT_SIZE = 32; // sizeof(int) * 8;
     int c, result;
 
     // Allocate memory for the binary string (+1 for the null terminator)
@@ -86,8 +92,35 @@ int binaryToDecimal(char *binary)
     return decimal;
 }
 
+int obtenerNumeroPagina(char *direccionBinario)
+{
+    // Copiar los bits de la página
+    char *paginaBinario = (char *)malloc((valueM - valueN + 1) * sizeof(char));
+    strncpy(paginaBinario, direccionBinario, valueM - valueN);
+    paginaBinario[valueM - valueN] = '\0'; // Añadir el terminador nulo
 
-void logMensaje(int direccion_virtual, int esMiss, int pagina, int desplazamiento, int direccion_reemplazo, float tiempo)
+    int pagina = binaryToDecimal(paginaBinario);
+
+    free(paginaBinario);
+
+    return pagina;
+}
+
+int obtenerDesplazamiento(char *direccionBinario)
+{
+    // Copiar los bits del desplazamiento
+    char *desplazamientoBinario = (char *)malloc((valueN + 1) * sizeof(char));
+    strncpy(desplazamientoBinario, direccionBinario + (valueM - valueN), valueN);
+    desplazamientoBinario[valueN] = '\0'; // Añadir el terminador nulo
+
+    int desplazamiento = binaryToDecimal(desplazamientoBinario);
+
+    free(desplazamientoBinario);
+
+    return desplazamiento;
+}
+
+void logMensaje(int direccion_virtual, int esMiss, int pagina, int desplazamiento, int direccion_reemplazo, double tiempo)
 {
 
     /*
@@ -128,7 +161,7 @@ void logMensaje(int direccion_virtual, int esMiss, int pagina, int desplazamient
         printf("Politica de reemplazo: %d\n", direccion_reemplazo);
     }
 
-    printf("Tiempo: %f segundos\n", tiempo);
+    printf("Tiempo: %.6f segundos\n", tiempo);
 
     free(paginaBinario);
     free(desplazamientoBinario);
@@ -136,8 +169,28 @@ void logMensaje(int direccion_virtual, int esMiss, int pagina, int desplazamient
     printf("\n");
 }
 
+void iniciarContador(struct timespec *start) {
+    clock_gettime(CLOCK_MONOTONIC, start);
+}
+
+void finalizarContador(struct timespec *end) {
+    clock_gettime(CLOCK_MONOTONIC, end);
+}
+
+double calcularDuracion(struct timespec *start, struct timespec *end) {
+
+    long seconds = end->tv_sec - start->tv_sec;
+    long nanoseconds = end->tv_nsec - start->tv_nsec;
+    double elapsed = seconds + nanoseconds*1e-9;
+
+    return elapsed;
+}
+
+
 int main()
 {
+
+    struct timespec start, end;
 
     int *entry1 = NULL;
     int *entry2 = NULL;
@@ -147,36 +200,45 @@ int main()
 
     while (1)
     {
-    
-        char *input;
-        printf("Ingrese dirección virtual: ");
-        scanf("%s", input);
 
-        if (input[0] == 's')
-        {
-            printf("Saliendo...\n");
-            break;
-        }
+        /*
 
-        int direccion_virtual = atoi(input);
+            char *input;
+            printf("Ingrese dirección virtual: ");
+            scanf("%s", input);
+
+            if (input[0] == 's')
+            {
+                printf("Saliendo...\n");
+                break;
+            }
+        */
+
+        int direccion_virtual = 19986; // atoi(input);
+        printf("Dirección virtual: %d\n\n", direccion_virtual);
 
         // Ingrese dirección virtual: 19986
         // TLB desde 0x00401251 hasta 0x004014D6
 
-        float tiempo;
-        int esMiss, pagina, desplazamiento, direccion_reemplazo;
+        iniciarContador(&start);
+        char *direccionBinario = decimalToBinary(direccion_virtual);
+        int pagina = obtenerNumeroPagina(direccionBinario);
+        int desplazamiento = obtenerDesplazamiento(direccionBinario);
 
+        int esMiss, direccion_reemplazo;
         esMiss = 1;
-        pagina = 4;
-        desplazamiento = 3602;
         direccion_reemplazo = -1;
-        tiempo = 0.000049;
+
+
+        finalizarContador(&end);
+        double tiempo = calcularDuracion(&start, &end);
+
 
         logMensaje(direccion_virtual, esMiss, pagina, desplazamiento, direccion_reemplazo, tiempo);
 
-
+        free(direccionBinario);
+        break;
     }
 
     return 0;
 }
-

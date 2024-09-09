@@ -52,7 +52,7 @@ double calcularDuracion(struct timespec *start, struct timespec *end)
 int valueM = 32;
 int valueN = 12;
 int NUM_ENTRADAS = 5; // Cantidad de entradas en el TLB
-int ENTRY_SIZE = (3 * sizeof(int)) + (32 * sizeof(char));
+int ENTRY_SIZE = (3 * sizeof(int)) + ((20 + 1) * sizeof(char)) + ((12 + 1) * sizeof(char));
 
 /*
     Mecanismo de cola circular
@@ -201,7 +201,7 @@ char* calcularDesplazamientoEnBinario(char *direccionBinario)
     return desplazamientoBinario;
 }
 
-void logMensaje(int direccion_virtual, int isTlbHit, int paginaDecimal, int desplazamientoDecimal, char* paginaBinario, char* desplazamientoBinario, int direccion_reemplazo, double tiempo)
+void logMensaje(int direccion_virtual, char* TLB, int isTlbHit, int paginaDecimal, int desplazamientoDecimal, char* paginaBinario, char* desplazamientoBinario, char* direccion_reemplazo, double tiempo)
 {
 
     /*
@@ -213,6 +213,9 @@ void logMensaje(int direccion_virtual, int isTlbHit, int paginaDecimal, int desp
         Politica de reemplazo: 0x0
         Tiempo: 0.000049 segundos
     */
+
+   // TLB desde 0x00401251 hasta 0x004014D6
+    printf("TLB desde %p hasta %p\n", &TLB[0], &TLB[0] + (ENTRY_SIZE * 5));
 
     if (isTlbHit == 1)
     {
@@ -228,13 +231,13 @@ void logMensaje(int direccion_virtual, int isTlbHit, int paginaDecimal, int desp
     printf("Página en binario: %s\n", paginaBinario);
     printf("Desplazamiento en binario: %s\n", desplazamientoBinario);
 
-    if (direccion_reemplazo == -1)
+    if (direccion_reemplazo == NULL)
     {
         printf("Politica de reemplazo: 0x0\n");
     }
     else
     {
-        printf("Politica de reemplazo: %d\n", direccion_reemplazo);
+        printf("Politica de reemplazo: %p\n", direccion_reemplazo);
     }
 
     printf("Tiempo: %.6f segundos\n", tiempo);
@@ -246,91 +249,76 @@ void logMensaje(int direccion_virtual, int isTlbHit, int paginaDecimal, int desp
 /*
     Funciones del TLB
 */
-int* tlbHas(int direccion, int *entry1, int *entry2, int *entry3, int *entry4, int *entry5)
-{
-    if (entry1 != NULL && *entry1 == direccion) {
-        return entry1;
-    }
-    if (entry2 != NULL && *entry2 == direccion) {
-        return entry2;
-    }
-    if (entry3 != NULL && *entry3 == direccion) {
-        return entry3;
-    }
-    if (entry4 != NULL && *entry4 == direccion) {
-        return entry4;
-    }
-    if (entry5 != NULL && *entry5 == direccion) {
-        return entry5;
-    }
 
-    return NULL;
+int getEntryStartAdress(int index) {
+    return index * ENTRY_SIZE;
 }
 
-int* getEntryToDequeue(int *firstEntry, int *lastEntry, int *entry1, int *entry2, int *entry3, int *entry4, int *entry5)
+char* getEntry(int index, char* TLB) {
+    int entryStartAdress = getEntryStartAdress(index);
+    char *entry = TLB + entryStartAdress;
+    return entry;
+}
+
+int getDireccionEntry(char *entry) {
+    return *((int*)entry);
+}
+
+char* getEntryToDequeue(int *firstEntry, int *lastEntry, char *TLB)
 {
     int indexEntry = Dequeue(firstEntry, lastEntry);
-
-    if (indexEntry == 0) {
-        return entry1;
-    } else if (indexEntry == 1) {
-        return entry2;
-    } else if (indexEntry == 2) {
-        return entry3;
-    } else if (indexEntry == 3) {
-        return entry4;
-    } else if (indexEntry == 4) {
-        return entry5;
-    }
-
-    return NULL;
+    char *entry = getEntry(indexEntry, TLB);
+    return entry;
 }
 
-int* getEntryToEnqueue(int direccion, int *firstEntry, int *lastEntry, int *entry1, int *entry2, int *entry3, int *entry4, int *entry5)
+char* getEntryToEnqueue(int *firstEntry, int *lastEntry, char* TLB)
 {
     int indexEntry = Enqueue(firstEntry, lastEntry);
+    char *entry = getEntry(indexEntry, TLB);
+    return entry;
+}
 
-    if (indexEntry == 0) {
-        return entry1;
-    } else if (indexEntry == 1) {
-        return entry2;
-    } else if (indexEntry == 2) {
-        return entry3;
-    } else if (indexEntry == 3) {
-        return entry4;
-    } else if (indexEntry == 4) {
-        return entry5;
+char* deleteTlbEntry(char* TLB, char *entry)
+{
+    *((int*)entry) = -1;
+    return entry;
+}
+
+void getDataFromEntry(char *entry, int *ptrPaginaDecimal, int *ptrDesplazamientoDecimal, char *paginaBinario, char *desplazamientoBinario)
+{
+    *ptrPaginaDecimal = *((int*)(entry + 4));
+    *ptrDesplazamientoDecimal = *((int*)(entry + 8));
+
+    strncpy(paginaBinario, entry + 12, 20 + 1);
+    strncpy(desplazamientoBinario, entry + 32 + 1, 12 + 1);
+}
+
+void saveDataInEntry(char* entry, int direccion, int pagina, int desplazamiento, char *paginaBinario, char *desplazamientoBinario) {
+    
+    *((int*)entry) = direccion;
+    *((int*)(entry + 4)) = pagina;
+    *((int*)(entry + 8)) = desplazamiento;
+
+    strncpy(entry + 12, paginaBinario, 32 + 1);
+    strncpy(entry + 32 + 1, desplazamientoBinario, 12 + 1);
+}
+
+char* TlbFind(char* TLB, int direccion) {
+
+    for (int i = 0; i < 5; i++)
+    {
+        char *entry = getEntry(i, TLB);
+        int entryDir = *((int*)entry);
+
+        if (entryDir == direccion)
+        {
+            return entry;
+        }
     }
 
     return NULL;
 }
 
-void guardarDireccionTlb(int direccion, int *entry)
-{
-    *entry = direccion;
-}
-
-int eliminarDireccionTlb(int direccion, int *entry)
-{
-    int direccionEliminada = *entry;
-    *entry = 0;
-    
-    return direccionEliminada;
-}
-
-void getDataFromEntry(int *entry, int *ptrPaginaDecimal, int *ptrDesplazamientoDecimal, char *paginaBinario, char *desplazamientoBinario)
-{
-    int direccion = *entry;
-
-    char *dirBin = decimalToBinary(direccion);
-    paginaBinario = calcularNumeroPaginaEnBinario(dirBin);
-    desplazamientoBinario = calcularDesplazamientoEnBinario(dirBin);
-    
-    *ptrPaginaDecimal = binaryToDecimal(paginaBinario);
-    *ptrDesplazamientoDecimal = binaryToDecimal(desplazamientoBinario);
-    
-    free(dirBin);
-}
 
 
 /*
@@ -350,7 +338,7 @@ int main()
 
     int tlbSize = ENTRY_SIZE * 5;
     char *TLB = malloc(tlbSize);
-
+    
     struct timespec startTime, endTime;
 
     int entry1 = 0;
@@ -382,15 +370,13 @@ int main()
 
         char *direccionBinario = decimalToBinary(direccion_virtual);
         int isTlbHit = 0;
-        int direccion_reemplazo = -1;
+        char* direccion_reemplazo = NULL;
         int paginaDecimal;
         int desplazamientoDecimal;
         char *paginaBinario;
         char *desplazamientoBinario;
         
-        // TLB desde 0x00401251 hasta 0x004014D6
-        printf("TLB desde %p hasta %p\n", &TLB[0], &TLB[0] + tlbSize);
-        int *tlbHitEntry = tlbHas(direccion_virtual, &entry1, &entry2, &entry3, &entry4, &entry5);
+        char *tlbHitEntry = TlbFind(TLB, direccion_virtual);
 
         // Si es tlb miss, agregar a la cola
         if (tlbHitEntry == NULL)
@@ -399,8 +385,8 @@ int main()
             // Si el tlb esta lleno, se saca de la cola un elemento
             if (getSize(&firstEntry, &lastEntry) == NUM_ENTRADAS)
             {   
-                int *entryToDequeue  = getEntryToDequeue(&firstEntry, &lastEntry, &entry1, &entry2, &entry3, &entry4, &entry5);
-                direccion_reemplazo = eliminarDireccionTlb(direccion_virtual, entryToDequeue);
+                char *entryToDequeue  = getEntryToDequeue(&firstEntry, &lastEntry, TLB);
+                direccion_reemplazo = deleteTlbEntry(TLB, entryToDequeue);
             }
 
             paginaBinario = calcularNumeroPaginaEnBinario(direccionBinario);
@@ -408,8 +394,8 @@ int main()
             paginaDecimal = binaryToDecimal(paginaBinario);
             desplazamientoDecimal = binaryToDecimal(desplazamientoBinario);
             
-            int *entryToEnqueue = getEntryToEnqueue(direccion_virtual, &firstEntry, &lastEntry, &entry1, &entry2, &entry3, &entry4, &entry5);
-            guardarDireccionTlb(direccion_virtual, entryToEnqueue);
+            char *entryToEnqueue = getEntryToEnqueue(&firstEntry, &lastEntry, TLB);
+            saveDataInEntry(entryToEnqueue, direccion_virtual, paginaDecimal, desplazamientoDecimal, paginaBinario, desplazamientoBinario);
 
         } else {
             isTlbHit = 1;
@@ -421,6 +407,7 @@ int main()
         finalizarContador(&endTime);
         logMensaje(
             direccion_virtual, 
+            TLB,
             isTlbHit, 
             paginaDecimal, 
             desplazamientoDecimal, 

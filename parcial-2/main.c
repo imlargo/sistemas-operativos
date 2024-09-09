@@ -402,8 +402,6 @@ int main()
         }
 
         int direccion_virtual = atoi(input);
-        printf("Dirección virtual: %d\n\n", direccion_virtual);
-        // Ingrese dirección virtual: 19986
         // TLB desde 0x00401251 hasta 0x004014D6
 
         int isHit = tlbHas(direccion_virtual, &entry1, &entry2, &entry3, &entry4, &entry5);

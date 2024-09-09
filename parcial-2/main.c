@@ -14,18 +14,24 @@
 #include <time.h>   /* for clock_gettime */
 
 /*
+
+# --- Constantes globales --- #
+
 - espacio virtual de direccionamiento de 32 bits
 - páginas de 4 KiB.
 
-int sizeBits = 32;          // 2 ^ 32 -> m = 32 -> 4G
-int sizeBytesPagina = 4096; // 4096 bytes -> 2 ^ 12 -> n = 12
-
+2 ^ 32 -> m = 32 bits -> 4G total
+4096 bytes por pagina -> 2 ^ 12 -> n = 12
 */
 
 int valueM = 32;
 int valueN = 12;
+int NUM_ENTRADAS = 5; // Cantidad de entradas en el TLB
 
-int NUM_ENTRADAS = 5;
+
+/*
+    Mecanismo de cola circular
+*/
 
 int getSize(int *first, int *last)
 {
@@ -84,6 +90,11 @@ int Dequeue(int *first, int *last)
 
     return index;
 }
+
+
+/*
+    Funciones de utilidad
+*/
 
 char *decimalToBinary(int num)
 {
@@ -206,6 +217,9 @@ void logMensaje(int direccion_virtual, int isTlbHit, char* paginaBinario, char* 
     printf("\n");
 }
 
+/*
+    Funciones de contador
+*/
 void iniciarContador(struct timespec *start)
 {
     clock_gettime(CLOCK_MONOTONIC, start);
@@ -226,6 +240,10 @@ double calcularDuracion(struct timespec *start, struct timespec *end)
     return elapsed;
 }
 
+
+/*
+    Funciones del TLB
+*/
 int* tlbHas(int direccion, int *entry1, int *entry2, int *entry3, int *entry4, int *entry5)
 {
     if (entry1 != NULL && *entry1 == direccion) {
@@ -298,6 +316,10 @@ int eliminarDireccionTlb(int direccion, int *entry)
     return direccionEliminada;
 }
 
+
+/*
+    Programa principal
+*/
 int main()
 {
 

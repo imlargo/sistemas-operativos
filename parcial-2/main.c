@@ -36,6 +36,66 @@ int sizeBytesPagina = 4096; // 4096 bytes -> 2 ^ 12 -> n = 12
 int valueM = 32;
 int valueN = 12;
 
+int NUM_ENTRADAS = 5;
+
+int getSize(int *first, int *last)
+{
+    if (*first == -1 && *last == -1)
+    {
+        return 0;
+    }
+
+    int a = NUM_ENTRADAS - (*first) + (*last);
+    return a % NUM_ENTRADAS + 1;
+}
+
+int Enqueue(int *first, int *last)
+{
+    int size = getSize(first, last);
+
+    if (size == 0)
+    {
+        *first = 0;
+    }
+
+    int index;
+    if (size < NUM_ENTRADAS)
+    {
+        index = (*last + 1) % NUM_ENTRADAS;
+        *last = index;
+    }
+    else
+    {
+        index = -1;
+    }
+
+    return index;
+}
+
+int Dequeue(int *first, int *last)
+{
+    int size = getSize(first, last);
+
+    if (size == 0)
+    {
+        return -1;
+    }
+
+    int index = *first;
+
+    if (size == 1)
+    {
+        *first = -1;
+        *last = -1;
+    }
+    else
+    {
+        *first = (*first + 1) % NUM_ENTRADAS;
+    }
+
+    return index;
+}
+
 char *decimalToBinary(int num)
 {
     int INT_SIZE = 32; // sizeof(int) * 8;
@@ -124,7 +184,7 @@ int obtenerDesplazamiento(char *direccionBinario)
     return desplazamiento;
 }
 
-void logMensaje(int direccion_virtual, int esMiss, int pagina, int desplazamiento, int direccion_reemplazo, double tiempo)
+void logMensaje(int direccion_virtual, int isHit, int pagina, int desplazamiento, int direccion_reemplazo, double tiempo)
 {
 
     /*
@@ -137,13 +197,13 @@ void logMensaje(int direccion_virtual, int esMiss, int pagina, int desplazamient
         Tiempo: 0.000049 segundos
     */
 
-    if (esMiss)
+    if (isHit == 1)
     {
-        printf("TLB Miss\n");
+        printf("TLB Hit\n");
     }
     else
     {
-        printf("TLB Hit\n");
+        printf("TLB Miss\n");
     }
 
     printf("Página: %d\n", pagina);
@@ -193,16 +253,139 @@ double calcularDuracion(struct timespec *start, struct timespec *end)
     return elapsed;
 }
 
+int tlbHas(int direccion, int *entry1, int *entry2, int *entry3, int *entry4, int *entry5)
+{
+    if (entry1 != NULL && *entry1 == direccion)
+    {
+        return 1;
+    }
+
+    if (entry2 != NULL && *entry2 == direccion)
+    {
+        return 1;
+    }
+
+    if (entry3 != NULL && *entry3 == direccion)
+    {
+        return 1;
+    }
+
+    if (entry4 != NULL && *entry4 == direccion)
+    {
+        return 1;
+    }
+
+    if (entry5 != NULL && *entry5 == direccion)
+    {
+        return 1;
+    }
+
+    return 0;
+}
+
+int verifyTlb(int *firstEntry, int *lastEntry, int *entry1, int *entry2, int *entry3, int *entry4, int *entry5)
+{
+    int size = getSize(firstEntry, lastEntry);
+
+    if (size < NUM_ENTRADAS)
+    {
+        return -1;
+    }
+
+    return Dequeue(firstEntry, lastEntry);
+}
+
+int removeTlb(int *firstEntry, int *lastEntry, int *entry1, int *entry2, int *entry3, int *entry4, int *entry5)
+{
+    int index = Dequeue(firstEntry, lastEntry);
+    int direccionEliminada = -1;
+
+    switch (index)
+    {
+    case 0:
+        direccionEliminada = *entry1;
+        *entry1 = 0;
+        return direccionEliminada;
+        break;
+
+    case 1:
+        direccionEliminada = *entry2;
+        *entry2 = 0;
+        return direccionEliminada;
+        break;
+
+    case 2:
+        direccionEliminada = *entry3;
+        *entry3 = 0;
+        return direccionEliminada;
+        break;
+
+    case 3:
+        direccionEliminada = *entry4;
+        *entry4 = 0;
+        return direccionEliminada;
+        break;
+
+    case 4:
+        direccionEliminada = *entry5;
+        *entry5 = 0;
+        return direccionEliminada;
+        break;
+
+    default:
+        printf("Error\n");
+        break;
+    }
+
+    return direccionEliminada;
+}
+
+int saveInTlb(int direccion, int *firstEntry, int *lastEntry, int *entry1, int *entry2, int *entry3, int *entry4, int *entry5)
+{
+
+    int index = Enqueue(firstEntry, lastEntry);
+
+    switch (index)
+    {
+    case 0:
+        *entry1 = direccion;
+        break;
+
+    case 1:
+        *entry2 = direccion;
+        break;
+
+    case 2:
+        *entry3 = direccion;
+        break;
+
+    case 3:
+        *entry4 = direccion;
+        break;
+
+    case 4:
+        *entry5 = direccion;
+        break;
+
+    default:
+        printf("Error\n");
+        break;
+    }
+}
+
 int main()
 {
 
     struct timespec start, end;
 
-    int *entry1 = NULL;
-    int *entry2 = NULL;
-    int *entry3 = NULL;
-    int *entry4 = NULL;
-    int *entry5 = NULL;
+    int entry1 = 0;
+    int entry2 = 0;
+    int entry3 = 0;
+    int entry4 = 0;
+    int entry5 = 0;
+
+    int firstEntry = -1;
+    int lastEntry = -1;
 
     while (1)
     {
@@ -223,19 +406,31 @@ int main()
         // Ingrese dirección virtual: 19986
         // TLB desde 0x00401251 hasta 0x004014D6
 
+        int isHit = tlbHas(direccion_virtual, &entry1, &entry2, &entry3, &entry4, &entry5);
+        int direccion_reemplazo = -1;
+
+        if (isHit == 0)
+        {
+            int tlbFull = getSize(&firstEntry, &lastEntry) == NUM_ENTRADAS;
+            if (tlbFull)
+            {
+                direccion_reemplazo = removeTlb(&firstEntry, &lastEntry, &entry1, &entry2, &entry3, &entry4, &entry5);
+            }
+
+            saveInTlb(direccion_virtual, &firstEntry, &lastEntry, &entry1, &entry2, &entry3, &entry4, &entry5);
+        }
+
+        int sizeTlb = getSize(&firstEntry, &lastEntry);
+
         iniciarContador(&start);
         char *direccionBinario = decimalToBinary(direccion_virtual);
         int pagina = obtenerNumeroPagina(direccionBinario);
         int desplazamiento = obtenerDesplazamiento(direccionBinario);
 
-        int esMiss, direccion_reemplazo;
-        esMiss = 1;
-        direccion_reemplazo = -1;
-
         finalizarContador(&end);
         double tiempo = calcularDuracion(&start, &end);
 
-        logMensaje(direccion_virtual, esMiss, pagina, desplazamiento, direccion_reemplazo, tiempo);
+        logMensaje(direccion_virtual, isHit, pagina, desplazamiento, direccion_reemplazo, tiempo);
 
         free(direccionBinario);
         free(input);

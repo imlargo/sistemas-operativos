@@ -87,56 +87,56 @@ int Dequeue(int *first, int *last)
 
 char *decimalToBinary(int num)
 {
-    int INT_SIZE = 32; // sizeof(int) * 8;
-    int c, result;
+    int INT_SIZE = 32;
+    int ind, result;
 
     // Allocate memory for the binary string (+1 for the null terminator)
-    char *binary = (char *)malloc((INT_SIZE + 1) * sizeof(char));
-    if (binary == NULL)
+    char *binario = (char *)malloc((INT_SIZE + 1) * sizeof(char));
+    if (binario == NULL)
     {
         printf("Memory allocation failed\n");
         exit(1);
     }
 
-    for (c = INT_SIZE - 1; c >= 0; c--)
+    for (ind = INT_SIZE - 1; ind >= 0; ind--)
     {
-        result = num >> c;
+        result = num >> ind;
 
         if (result & 1)
         {
-            binary[INT_SIZE - 1 - c] = '1';
+            binario[INT_SIZE - 1 - ind] = '1';
         }
         else
         {
-            binary[INT_SIZE - 1 - c] = '0';
+            binario[INT_SIZE - 1 - ind] = '0';
         }
     }
 
     // Null-terminate the string
-    binary[INT_SIZE] = '\0';
+    binario[INT_SIZE] = '\0';
 
-    return binary;
+    return binario;
 }
 
 int binaryToDecimal(char *binary)
 {
     int decimal = 0;
-    int c;
-    int length = 0;
 
     // Get the length of the string
+    int length = 0;
     while (binary[length] != '\0')
     {
         length++;
     }
 
-    for (c = 0; c < length; c++)
+    int ind;
+    for (ind = 0; ind < length; ind++)
     {
-        if (binary[c] == '1')
+        if (binary[ind] == '1')
         {
             decimal = decimal * 2 + 1;
         }
-        else if (binary[c] == '0')
+        else if (binary[ind] == '0')
         {
             decimal = decimal * 2;
         }
@@ -165,7 +165,7 @@ char* obtenerDesplazamientoEnBinario(char *direccionBinario)
     return desplazamientoBinario;
 }
 
-void logMensaje(int direccion_virtual, int isHit, char* paginaBinario, char* desplazamientoBinario, int direccion_reemplazo, double tiempo)
+void logMensaje(int direccion_virtual, int isTlbHit, char* paginaBinario, char* desplazamientoBinario, int direccion_reemplazo, double tiempo)
 {
 
     /*
@@ -178,7 +178,7 @@ void logMensaje(int direccion_virtual, int isHit, char* paginaBinario, char* des
         Tiempo: 0.000049 segundos
     */
 
-    if (isHit == 1)
+    if (isTlbHit == 1)
     {
         printf("TLB Hit\n");
     }
@@ -256,7 +256,7 @@ int tlbHas(int direccion, int *entry1, int *entry2, int *entry3, int *entry4, in
     return 0;
 }
 
-int removeTlb(int *firstEntry, int *lastEntry, int *entry1, int *entry2, int *entry3, int *entry4, int *entry5)
+int dequeueTlb(int *firstEntry, int *lastEntry, int *entry1, int *entry2, int *entry3, int *entry4, int *entry5)
 {
     int index = Dequeue(firstEntry, lastEntry);
     int direccionEliminada = -1;
@@ -301,7 +301,7 @@ int removeTlb(int *firstEntry, int *lastEntry, int *entry1, int *entry2, int *en
     return direccionEliminada;
 }
 
-int saveInTlb(int direccion, int *firstEntry, int *lastEntry, int *entry1, int *entry2, int *entry3, int *entry4, int *entry5)
+int enqueueTlb(int direccion, int *firstEntry, int *lastEntry, int *entry1, int *entry2, int *entry3, int *entry4, int *entry5)
 {
 
     int index = Enqueue(firstEntry, lastEntry);
@@ -337,7 +337,11 @@ int saveInTlb(int direccion, int *firstEntry, int *lastEntry, int *entry1, int *
 int main()
 {
 
-    struct timespec start, end;
+    
+    printf("size of int: %lu, size of char: %lu\n", sizeof(int), sizeof(char));
+
+
+    struct timespec startTime, endTime;
 
     int entry1 = 0;
     int entry2 = 0;
@@ -363,25 +367,25 @@ int main()
         }
 
         int direccion_virtual = atoi(input);
-        iniciarContador(&start);
+        iniciarContador(&startTime);
 
         // TLB desde 0x00401251 hasta 0x004014D6
-        int isHit = tlbHas(direccion_virtual, &entry1, &entry2, &entry3, &entry4, &entry5);
+        int isTlbHit = tlbHas(direccion_virtual, &entry1, &entry2, &entry3, &entry4, &entry5);
         int direccion_reemplazo = -1;
         char *direccionBinario;
         char *paginaBinario;
         char *desplazamientoBinario;
 
         // Si es tlb miss, agregar a la cola
-        if (isHit == 0)
+        if (isTlbHit == 0)
         {
             // Si el tlb esta lleno, se saca de la cola un elemento
             if (getSize(&firstEntry, &lastEntry) == NUM_ENTRADAS)
             {
-                direccion_reemplazo = removeTlb(&firstEntry, &lastEntry, &entry1, &entry2, &entry3, &entry4, &entry5);
+                direccion_reemplazo = dequeueTlb(&firstEntry, &lastEntry, &entry1, &entry2, &entry3, &entry4, &entry5);
             }
 
-            saveInTlb(direccion_virtual, &firstEntry, &lastEntry, &entry1, &entry2, &entry3, &entry4, &entry5);
+            enqueueTlb(direccion_virtual, &firstEntry, &lastEntry, &entry1, &entry2, &entry3, &entry4, &entry5);
 
             direccionBinario = decimalToBinary(direccion_virtual);
             paginaBinario = obtenerNumeroPaginaEnBinario(direccionBinario);
@@ -395,8 +399,8 @@ int main()
         }
 
         // Finalizar contador e imprimir mensaje
-        finalizarContador(&end);
-        logMensaje(direccion_virtual, isHit, paginaBinario, desplazamientoBinario, direccion_reemplazo, calcularDuracion(&start, &end));
+        finalizarContador(&endTime);
+        logMensaje(direccion_virtual, isTlbHit, paginaBinario, desplazamientoBinario, direccion_reemplazo, calcularDuracion(&startTime, &endTime));
 
         // Liberar recursos
         free(direccionBinario);

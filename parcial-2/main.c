@@ -52,7 +52,7 @@ double calcularDuracion(struct timespec *start, struct timespec *end)
 int valueM = 32;
 int valueN = 12;
 int NUM_ENTRADAS = 5; // Cantidad de entradas en el TLB
-
+int ENTRY_SIZE = (3 * sizeof(int)) + (32 * sizeof(char));
 
 /*
     Mecanismo de cola circular
@@ -339,6 +339,18 @@ void getDataFromEntry(int *entry, int *ptrPaginaDecimal, int *ptrDesplazamientoD
 int main()
 {
 
+
+   /*
+    dirección de memoria en decimal -> 4bytes
+    número de página en decimal -> 4bytes -> 8
+    desplazamiento en decimal -> 4bytes -> 12
+    número de página en binario -> valueM - valueN -> 20 bytes -> 32
+    desplazamiento en binario. -> valueN -> 12 bytes -> 44
+   */
+
+    int tlbSize = ENTRY_SIZE * 5;
+    char *TLB = malloc(tlbSize);
+
     struct timespec startTime, endTime;
 
     int entry1 = 0;
@@ -361,7 +373,7 @@ int main()
         {
             printf("Good bye! ;)\n");
             free(input);
-            
+            free(TLB);
             break;
         }
 
@@ -375,8 +387,9 @@ int main()
         int desplazamientoDecimal;
         char *paginaBinario;
         char *desplazamientoBinario;
-
+        
         // TLB desde 0x00401251 hasta 0x004014D6
+        printf("TLB desde %p hasta %p\n", &TLB[0], &TLB[0] + tlbSize);
         int *tlbHitEntry = tlbHas(direccion_virtual, &entry1, &entry2, &entry3, &entry4, &entry5);
 
         // Si es tlb miss, agregar a la cola

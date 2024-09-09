@@ -260,10 +260,6 @@ char* getEntry(int index, char* TLB) {
     return entry;
 }
 
-int getDireccionEntry(char *entry) {
-    return *((int*)entry);
-}
-
 char* getEntryToDequeue(int *firstEntry, int *lastEntry, char *TLB)
 {
     int indexEntry = Dequeue(firstEntry, lastEntry);

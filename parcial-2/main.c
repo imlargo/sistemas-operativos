@@ -24,10 +24,14 @@ un TLB Hit o un TLB Miss. Para simular el TLB debe usar memoria en el segmento h
 los conceptos explicados en clase.
 */
 
-#define BILLION 1000000000L
+/*
+- espacio virtual de direccionamiento de 32 bits
+- páginas de 4 KiB.
 
 int sizeBits = 32;          // 2 ^ 32 -> m = 32 -> 4G
 int sizeBytesPagina = 4096; // 4096 bytes -> 2 ^ 12 -> n = 12
+
+*/
 
 int valueM = 32;
 int valueN = 12;

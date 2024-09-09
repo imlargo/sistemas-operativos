@@ -58,7 +58,7 @@ int ENTRY_SIZE = (3 * sizeof(int)) + ((20 + 1) * sizeof(char)) + ((12 + 1) * siz
     Mecanismo de cola circular
 */
 
-int getSize(int *first, int *last)
+int getSizeCola(int *first, int *last)
 {
     if (*first == -1 && *last == -1)
     {
@@ -71,7 +71,7 @@ int getSize(int *first, int *last)
 
 int Enqueue(int *first, int *last)
 {
-    int size = getSize(first, last);
+    int size = getSizeCola(first, last);
 
     if (size == 0)
     {
@@ -94,7 +94,7 @@ int Enqueue(int *first, int *last)
 
 int Dequeue(int *first, int *last)
 {
-    int size = getSize(first, last);
+    int size = getSizeCola(first, last);
 
     if (size == 0)
     {
@@ -337,14 +337,8 @@ int main()
     
     struct timespec startTime, endTime;
 
-    int entry1 = 0;
-    int entry2 = 0;
-    int entry3 = 0;
-    int entry4 = 0;
-    int entry5 = 0;
-
-    int firstEntry = -1;
-    int lastEntry = -1;
+    int firstEntryInd = -1;
+    int lastEntryInd = -1;
 
     while (1)
     {
@@ -365,23 +359,23 @@ int main()
         iniciarContador(&startTime);
 
         char *direccionBinario = decimalToBinary(direccion_virtual);
-        int isTlbHit = 0;
-        char* direccion_reemplazo = NULL;
         int paginaDecimal;
         int desplazamientoDecimal;
         char *paginaBinario;
         char *desplazamientoBinario;
-        
-        char *tlbHitEntry = TlbFind(TLB, direccion_virtual);
 
-        // Si es tlb miss, agregar a la cola
+        int isTlbHit = 0;
+        char* direccion_reemplazo = NULL;
+        
+        // Buscar tlb segun la direccion, si es tlb miss, agregar a la cola
+        char *tlbHitEntry = TlbFind(TLB, direccion_virtual);
         if (tlbHitEntry == NULL)
         {   
             isTlbHit = 0;
             // Si el tlb esta lleno, se saca de la cola un elemento
-            if (getSize(&firstEntry, &lastEntry) == NUM_ENTRADAS)
+            if (getSizeCola(&firstEntryInd, &lastEntryInd) == NUM_ENTRADAS)
             {   
-                char *entryToDequeue  = getEntryToDequeue(&firstEntry, &lastEntry, TLB);
+                char *entryToDequeue  = getEntryToDequeue(&firstEntryInd, &lastEntryInd, TLB);
                 direccion_reemplazo = deleteTlbEntry(TLB, entryToDequeue);
             }
 
@@ -390,7 +384,7 @@ int main()
             paginaDecimal = binaryToDecimal(paginaBinario);
             desplazamientoDecimal = binaryToDecimal(desplazamientoBinario);
             
-            char *entryToEnqueue = getEntryToEnqueue(&firstEntry, &lastEntry, TLB);
+            char *entryToEnqueue = getEntryToEnqueue(&firstEntryInd, &lastEntryInd, TLB);
             saveDataInEntry(entryToEnqueue, direccion_virtual, paginaDecimal, desplazamientoDecimal, paginaBinario, desplazamientoBinario);
 
         } else {

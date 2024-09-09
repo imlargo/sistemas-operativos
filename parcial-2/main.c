@@ -256,90 +256,59 @@ int tlbHas(int direccion, int *entry1, int *entry2, int *entry3, int *entry4, in
     return 0;
 }
 
-int dequeueTlb(int *firstEntry, int *lastEntry, int *entry1, int *entry2, int *entry3, int *entry4, int *entry5)
+int* getEntryToDequeue(int *firstEntry, int *lastEntry, int *entry1, int *entry2, int *entry3, int *entry4, int *entry5)
 {
-    int index = Dequeue(firstEntry, lastEntry);
-    int direccionEliminada = -1;
+    int indexEntry = Dequeue(firstEntry, lastEntry);
 
-    switch (index)
-    {
-    case 0:
-        direccionEliminada = *entry1;
-        *entry1 = 0;
-        return direccionEliminada;
-        break;
-
-    case 1:
-        direccionEliminada = *entry2;
-        *entry2 = 0;
-        return direccionEliminada;
-        break;
-
-    case 2:
-        direccionEliminada = *entry3;
-        *entry3 = 0;
-        return direccionEliminada;
-        break;
-
-    case 3:
-        direccionEliminada = *entry4;
-        *entry4 = 0;
-        return direccionEliminada;
-        break;
-
-    case 4:
-        direccionEliminada = *entry5;
-        *entry5 = 0;
-        return direccionEliminada;
-        break;
-
-    default:
-        printf("Error\n");
-        break;
+    if (indexEntry == 0) {
+        return entry1;
+    } else if (indexEntry == 1) {
+        return entry2;
+    } else if (indexEntry == 2) {
+        return entry3;
+    } else if (indexEntry == 3) {
+        return entry4;
+    } else if (indexEntry == 4) {
+        return entry5;
     }
 
-    return direccionEliminada;
+    return NULL;
 }
 
-int enqueueTlb(int direccion, int *firstEntry, int *lastEntry, int *entry1, int *entry2, int *entry3, int *entry4, int *entry5)
+int* getEntryToEnqueue(int direccion, int *firstEntry, int *lastEntry, int *entry1, int *entry2, int *entry3, int *entry4, int *entry5)
 {
+    int indexEntry = Enqueue(firstEntry, lastEntry);
 
-    int index = Enqueue(firstEntry, lastEntry);
-
-    switch (index)
-    {
-    case 0:
-        *entry1 = direccion;
-        break;
-
-    case 1:
-        *entry2 = direccion;
-        break;
-
-    case 2:
-        *entry3 = direccion;
-        break;
-
-    case 3:
-        *entry4 = direccion;
-        break;
-
-    case 4:
-        *entry5 = direccion;
-        break;
-
-    default:
-        printf("Error\n");
-        break;
+    if (indexEntry == 0) {
+        return entry1;
+    } else if (indexEntry == 1) {
+        return entry2;
+    } else if (indexEntry == 2) {
+        return entry3;
+    } else if (indexEntry == 3) {
+        return entry4;
+    } else if (indexEntry == 4) {
+        return entry5;
     }
+
+    return NULL;
+}
+
+void guardarDireccionTlb(int direccion, int *entry)
+{
+    *entry = direccion;
+}
+
+int eliminarDireccionTlb(int direccion, int *entry)
+{
+    int direccionEliminada = *entry;
+    *entry = 0;
+    
+    return direccionEliminada;
 }
 
 int main()
 {
-
-    
-    printf("size of int: %lu, size of char: %lu\n", sizeof(int), sizeof(char));
-
 
     struct timespec startTime, endTime;
 
@@ -381,11 +350,13 @@ int main()
         {
             // Si el tlb esta lleno, se saca de la cola un elemento
             if (getSize(&firstEntry, &lastEntry) == NUM_ENTRADAS)
-            {
-                direccion_reemplazo = dequeueTlb(&firstEntry, &lastEntry, &entry1, &entry2, &entry3, &entry4, &entry5);
+            {   
+                int *entryToDequeue  = getEntryToDequeue(&firstEntry, &lastEntry, &entry1, &entry2, &entry3, &entry4, &entry5);
+                direccion_reemplazo = eliminarDireccionTlb(direccion_virtual, entryToDequeue);
             }
 
-            enqueueTlb(direccion_virtual, &firstEntry, &lastEntry, &entry1, &entry2, &entry3, &entry4, &entry5);
+            int *entryToEnqueue = getEntryToEnqueue(direccion_virtual, &firstEntry, &lastEntry, &entry1, &entry2, &entry3, &entry4, &entry5);
+            guardarDireccionTlb(direccion_virtual, entryToEnqueue);
 
             direccionBinario = decimalToBinary(direccion_virtual);
             paginaBinario = obtenerNumeroPaginaEnBinario(direccionBinario);

@@ -226,34 +226,25 @@ double calcularDuracion(struct timespec *start, struct timespec *end)
     return elapsed;
 }
 
-int tlbHas(int direccion, int *entry1, int *entry2, int *entry3, int *entry4, int *entry5)
+int* tlbHas(int direccion, int *entry1, int *entry2, int *entry3, int *entry4, int *entry5)
 {
-    if (entry1 != NULL && *entry1 == direccion)
-    {
-        return 1;
+    if (entry1 != NULL && *entry1 == direccion) {
+        return entry1;
+    }
+    if (entry2 != NULL && *entry2 == direccion) {
+        return entry2;
+    }
+    if (entry3 != NULL && *entry3 == direccion) {
+        return entry3;
+    }
+    if (entry4 != NULL && *entry4 == direccion) {
+        return entry4;
+    }
+    if (entry5 != NULL && *entry5 == direccion) {
+        return entry5;
     }
 
-    if (entry2 != NULL && *entry2 == direccion)
-    {
-        return 1;
-    }
-
-    if (entry3 != NULL && *entry3 == direccion)
-    {
-        return 1;
-    }
-
-    if (entry4 != NULL && *entry4 == direccion)
-    {
-        return 1;
-    }
-
-    if (entry5 != NULL && *entry5 == direccion)
-    {
-        return 1;
-    }
-
-    return 0;
+    return NULL;
 }
 
 int* getEntryToDequeue(int *firstEntry, int *lastEntry, int *entry1, int *entry2, int *entry3, int *entry4, int *entry5)
@@ -339,15 +330,19 @@ int main()
         iniciarContador(&startTime);
 
         // TLB desde 0x00401251 hasta 0x004014D6
-        int isTlbHit = tlbHas(direccion_virtual, &entry1, &entry2, &entry3, &entry4, &entry5);
+        int isTlbHit = 0;
+        int *tlbHitEntry = tlbHas(direccion_virtual, &entry1, &entry2, &entry3, &entry4, &entry5);
         int direccion_reemplazo = -1;
+        
         char *direccionBinario;
         char *paginaBinario;
         char *desplazamientoBinario;
 
         // Si es tlb miss, agregar a la cola
-        if (isTlbHit == 0)
-        {
+        
+        if (tlbHitEntry == NULL)
+        {   
+            isTlbHit = 0;
             // Si el tlb esta lleno, se saca de la cola un elemento
             if (getSize(&firstEntry, &lastEntry) == NUM_ENTRADAS)
             {   
@@ -363,7 +358,11 @@ int main()
             desplazamientoBinario = obtenerDesplazamientoEnBinario(direccionBinario);
 
         } else {
-            // Si es tlb hit, cargar datos del TLB (Por hacer)
+            isTlbHit = 1;
+
+            /* 
+                Si es tlb hit, cargar datos del TLB (Por hacer) 
+            */
             direccionBinario = decimalToBinary(direccion_virtual);
             paginaBinario = obtenerNumeroPaginaEnBinario(direccionBinario);
             desplazamientoBinario = obtenerDesplazamientoEnBinario(direccionBinario);

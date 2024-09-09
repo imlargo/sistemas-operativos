@@ -14,17 +14,6 @@
 #include <time.h>   /* for clock_gettime */
 
 /*
-Escriba un programa en C que realice la traducción de direcciones de memoria en un sistema que
-tiene un espacio virtual de direccionamiento de 32 bits con páginas de 4 KiB. El programa debe leer
-de manera indefinida y hasta que el usuario pulse la letra «s», una dirección en decimal y mostrar:
-(a) el número de página en decimal y en binario, (b) el desplazamiento dentro de la página en
-decimal y en binario, (c) el tiempo en segundos que tomó la operación y (d) si la traducción produce
-un TLB Hit o un TLB Miss. Para simular el TLB debe usar memoria en el segmento heap del proceso
-(obligatorio). Implemente toda la lógica de la traducción usando el TLB como caché, de acuerdo con
-los conceptos explicados en clase.
-*/
-
-/*
 - espacio virtual de direccionamiento de 32 bits
 - páginas de 4 KiB.
 
@@ -365,10 +354,10 @@ int main()
         char *input = malloc(100 * sizeof(char));
         printf("Ingrese dirección virtual: ");
         scanf("%99s", input);
-
-        if (input[0] == 's')
+        
+        if (strcmp(input, "s") == 0)
         {
-            printf("Saliendo...\n");
+            printf("Good bye! ;)\n");
             free(input);
             break;
         }
@@ -379,7 +368,11 @@ int main()
         // TLB desde 0x00401251 hasta 0x004014D6
         int isHit = tlbHas(direccion_virtual, &entry1, &entry2, &entry3, &entry4, &entry5);
         int direccion_reemplazo = -1;
+        char *direccionBinario;
+        char *paginaBinario;
+        char *desplazamientoBinario;
 
+        // Si es tlb miss, agregar a la cola
         if (isHit == 0)
         {
             // Si el tlb esta lleno, se saca de la cola un elemento
@@ -389,17 +382,23 @@ int main()
             }
 
             saveInTlb(direccion_virtual, &firstEntry, &lastEntry, &entry1, &entry2, &entry3, &entry4, &entry5);
+
+            direccionBinario = decimalToBinary(direccion_virtual);
+            paginaBinario = obtenerNumeroPaginaEnBinario(direccionBinario);
+            desplazamientoBinario = obtenerDesplazamientoEnBinario(direccionBinario);
+
+        } else {
+            // Si es tlb hit, cargar datos del TLB (Por hacer)
+            direccionBinario = decimalToBinary(direccion_virtual);
+            paginaBinario = obtenerNumeroPaginaEnBinario(direccionBinario);
+            desplazamientoBinario = obtenerDesplazamientoEnBinario(direccionBinario);
         }
-        
-        char *direccionBinario = decimalToBinary(direccion_virtual);
-        char *paginaBinario = obtenerNumeroPaginaEnBinario(direccionBinario);
-        char *desplazamientoBinario = obtenerDesplazamientoEnBinario(direccionBinario);
 
+        // Finalizar contador e imprimir mensaje
         finalizarContador(&end);
-        double tiempo = calcularDuracion(&start, &end);
+        logMensaje(direccion_virtual, isHit, paginaBinario, desplazamientoBinario, direccion_reemplazo, calcularDuracion(&start, &end));
 
-        logMensaje(direccion_virtual, isHit, paginaBinario, desplazamientoBinario, direccion_reemplazo, tiempo);
-
+        // Liberar recursos
         free(direccionBinario);
         free(paginaBinario);
         free(desplazamientoBinario);

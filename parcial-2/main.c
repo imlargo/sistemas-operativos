@@ -390,25 +390,23 @@ int main()
         }
 
         int direccion_virtual = atoi(input);
-        // TLB desde 0x00401251 hasta 0x004014D6
+        iniciarContador(&start);
 
+        // TLB desde 0x00401251 hasta 0x004014D6
         int isHit = tlbHas(direccion_virtual, &entry1, &entry2, &entry3, &entry4, &entry5);
         int direccion_reemplazo = -1;
 
         if (isHit == 0)
         {
-            int tlbFull = getSize(&firstEntry, &lastEntry) == NUM_ENTRADAS;
-            if (tlbFull)
+            // Si el tlb esta lleno, se saca de la cola un elemento
+            if (getSize(&firstEntry, &lastEntry) == NUM_ENTRADAS)
             {
                 direccion_reemplazo = removeTlb(&firstEntry, &lastEntry, &entry1, &entry2, &entry3, &entry4, &entry5);
             }
 
             saveInTlb(direccion_virtual, &firstEntry, &lastEntry, &entry1, &entry2, &entry3, &entry4, &entry5);
         }
-
-        int sizeTlb = getSize(&firstEntry, &lastEntry);
-
-        iniciarContador(&start);
+        
         char *direccionBinario = decimalToBinary(direccion_virtual);
         int pagina = obtenerNumeroPagina(direccionBinario);
         int desplazamiento = obtenerDesplazamiento(direccionBinario);

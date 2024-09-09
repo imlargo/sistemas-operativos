@@ -156,35 +156,27 @@ int binaryToDecimal(char *binary)
     return decimal;
 }
 
-int obtenerNumeroPagina(char *direccionBinario)
+char* obtenerNumeroPaginaEnBinario(char *direccionBinario)
 {
     // Copiar los bits de la página
     char *paginaBinario = (char *)malloc((valueM - valueN + 1) * sizeof(char));
     strncpy(paginaBinario, direccionBinario, valueM - valueN);
     paginaBinario[valueM - valueN] = '\0'; // Añadir el terminador nulo
 
-    int pagina = binaryToDecimal(paginaBinario);
-
-    free(paginaBinario);
-
-    return pagina;
+    return paginaBinario;
 }
 
-int obtenerDesplazamiento(char *direccionBinario)
+char* obtenerDesplazamientoEnBinario(char *direccionBinario)
 {
     // Copiar los bits del desplazamiento
     char *desplazamientoBinario = (char *)malloc((valueN + 1) * sizeof(char));
     strncpy(desplazamientoBinario, direccionBinario + (valueM - valueN), valueN);
     desplazamientoBinario[valueN] = '\0'; // Añadir el terminador nulo
 
-    int desplazamiento = binaryToDecimal(desplazamientoBinario);
-
-    free(desplazamientoBinario);
-
-    return desplazamiento;
+    return desplazamientoBinario;
 }
 
-void logMensaje(int direccion_virtual, int isHit, int pagina, int desplazamiento, int direccion_reemplazo, double tiempo)
+void logMensaje(int direccion_virtual, int isHit, char* paginaBinario, char* desplazamientoBinario, int direccion_reemplazo, double tiempo)
 {
 
     /*
@@ -206,13 +198,8 @@ void logMensaje(int direccion_virtual, int isHit, int pagina, int desplazamiento
         printf("TLB Miss\n");
     }
 
-    printf("Página: %d\n", pagina);
-
-    printf("Desplazamiento: %d\n", desplazamiento);
-
-    char *paginaBinario = decimalToBinary(pagina);
-    char *desplazamientoBinario = decimalToBinary(desplazamiento);
-
+    printf("Página: %d\n", binaryToDecimal(paginaBinario));
+    printf("Desplazamiento: %d\n", binaryToDecimal(desplazamientoBinario));
     printf("Página en binario: %s\n", paginaBinario);
     printf("Desplazamiento en binario: %s\n", desplazamientoBinario);
 
@@ -226,9 +213,6 @@ void logMensaje(int direccion_virtual, int isHit, int pagina, int desplazamiento
     }
 
     printf("Tiempo: %.6f segundos\n", tiempo);
-
-    free(paginaBinario);
-    free(desplazamientoBinario);
 
     printf("\n");
 }
@@ -408,15 +392,17 @@ int main()
         }
         
         char *direccionBinario = decimalToBinary(direccion_virtual);
-        int pagina = obtenerNumeroPagina(direccionBinario);
-        int desplazamiento = obtenerDesplazamiento(direccionBinario);
+        char *paginaBinario = obtenerNumeroPaginaEnBinario(direccionBinario);
+        char *desplazamientoBinario = obtenerDesplazamientoEnBinario(direccionBinario);
 
         finalizarContador(&end);
         double tiempo = calcularDuracion(&start, &end);
 
-        logMensaje(direccion_virtual, isHit, pagina, desplazamiento, direccion_reemplazo, tiempo);
+        logMensaje(direccion_virtual, isHit, paginaBinario, desplazamientoBinario, direccion_reemplazo, tiempo);
 
         free(direccionBinario);
+        free(paginaBinario);
+        free(desplazamientoBinario);
         free(input);
     }
 

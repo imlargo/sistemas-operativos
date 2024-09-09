@@ -24,6 +24,31 @@
 4096 bytes por pagina -> 2 ^ 12 -> n = 12
 */
 
+
+/*
+    Funciones de contador
+*/
+void iniciarContador(struct timespec *start)
+{
+    clock_gettime(CLOCK_MONOTONIC, start);
+}
+
+void finalizarContador(struct timespec *end)
+{
+    clock_gettime(CLOCK_MONOTONIC, end);
+}
+
+double calcularDuracion(struct timespec *start, struct timespec *end)
+{
+
+    long seconds = end->tv_sec - start->tv_sec;
+    long nanoseconds = end->tv_nsec - start->tv_nsec;
+    double elapsed = seconds + nanoseconds * 1e-9;
+
+    return elapsed;
+}
+
+
 int valueM = 32;
 int valueN = 12;
 int NUM_ENTRADAS = 5; // Cantidad de entradas en el TLB
@@ -156,7 +181,7 @@ int binaryToDecimal(char *binary)
     return decimal;
 }
 
-char* obtenerNumeroPaginaEnBinario(char *direccionBinario)
+char* calcularNumeroPaginaEnBinario(char *direccionBinario)
 {
     // Copiar los bits de la página
     char *paginaBinario = (char *)malloc((valueM - valueN + 1) * sizeof(char));
@@ -166,7 +191,7 @@ char* obtenerNumeroPaginaEnBinario(char *direccionBinario)
     return paginaBinario;
 }
 
-char* obtenerDesplazamientoEnBinario(char *direccionBinario)
+char* calcularDesplazamientoEnBinario(char *direccionBinario)
 {
     // Copiar los bits del desplazamiento
     char *desplazamientoBinario = (char *)malloc((valueN + 1) * sizeof(char));
@@ -176,7 +201,7 @@ char* obtenerDesplazamientoEnBinario(char *direccionBinario)
     return desplazamientoBinario;
 }
 
-void logMensaje(int direccion_virtual, int isTlbHit, char* paginaBinario, char* desplazamientoBinario, int direccion_reemplazo, double tiempo)
+void logMensaje(int direccion_virtual, int isTlbHit, int paginaDecimal, int desplazamientoDecimal, char* paginaBinario, char* desplazamientoBinario, int direccion_reemplazo, double tiempo)
 {
 
     /*
@@ -198,8 +223,8 @@ void logMensaje(int direccion_virtual, int isTlbHit, char* paginaBinario, char* 
         printf("TLB Miss\n");
     }
 
-    printf("Página: %d\n", binaryToDecimal(paginaBinario));
-    printf("Desplazamiento: %d\n", binaryToDecimal(desplazamientoBinario));
+    printf("Página: %d\n", paginaDecimal);
+    printf("Desplazamiento: %d\n", desplazamientoDecimal);
     printf("Página en binario: %s\n", paginaBinario);
     printf("Desplazamiento en binario: %s\n", desplazamientoBinario);
 
@@ -215,29 +240,6 @@ void logMensaje(int direccion_virtual, int isTlbHit, char* paginaBinario, char* 
     printf("Tiempo: %.6f segundos\n", tiempo);
 
     printf("\n");
-}
-
-/*
-    Funciones de contador
-*/
-void iniciarContador(struct timespec *start)
-{
-    clock_gettime(CLOCK_MONOTONIC, start);
-}
-
-void finalizarContador(struct timespec *end)
-{
-    clock_gettime(CLOCK_MONOTONIC, end);
-}
-
-double calcularDuracion(struct timespec *start, struct timespec *end)
-{
-
-    long seconds = end->tv_sec - start->tv_sec;
-    long nanoseconds = end->tv_nsec - start->tv_nsec;
-    double elapsed = seconds + nanoseconds * 1e-9;
-
-    return elapsed;
 }
 
 
@@ -316,6 +318,20 @@ int eliminarDireccionTlb(int direccion, int *entry)
     return direccionEliminada;
 }
 
+void getDataFromEntry(int *entry, int *ptrPaginaDecimal, int *ptrDesplazamientoDecimal, char *paginaBinario, char *desplazamientoBinario)
+{
+    int direccion = *entry;
+
+    char *dirBin = decimalToBinary(direccion);
+    paginaBinario = calcularNumeroPaginaEnBinario(dirBin);
+    desplazamientoBinario = calcularDesplazamientoEnBinario(dirBin);
+    
+    *ptrPaginaDecimal = binaryToDecimal(paginaBinario);
+    *ptrDesplazamientoDecimal = binaryToDecimal(desplazamientoBinario);
+    
+    free(dirBin);
+}
+
 
 /*
     Programa principal
@@ -345,23 +361,25 @@ int main()
         {
             printf("Good bye! ;)\n");
             free(input);
+            
             break;
         }
 
         int direccion_virtual = atoi(input);
         iniciarContador(&startTime);
 
-        // TLB desde 0x00401251 hasta 0x004014D6
+        char *direccionBinario = decimalToBinary(direccion_virtual);
         int isTlbHit = 0;
-        int *tlbHitEntry = tlbHas(direccion_virtual, &entry1, &entry2, &entry3, &entry4, &entry5);
         int direccion_reemplazo = -1;
-        
-        char *direccionBinario;
+        int paginaDecimal;
+        int desplazamientoDecimal;
         char *paginaBinario;
         char *desplazamientoBinario;
 
+        // TLB desde 0x00401251 hasta 0x004014D6
+        int *tlbHitEntry = tlbHas(direccion_virtual, &entry1, &entry2, &entry3, &entry4, &entry5);
+
         // Si es tlb miss, agregar a la cola
-        
         if (tlbHitEntry == NULL)
         {   
             isTlbHit = 0;
@@ -372,27 +390,32 @@ int main()
                 direccion_reemplazo = eliminarDireccionTlb(direccion_virtual, entryToDequeue);
             }
 
+            paginaBinario = calcularNumeroPaginaEnBinario(direccionBinario);
+            desplazamientoBinario = calcularDesplazamientoEnBinario(direccionBinario);
+            paginaDecimal = binaryToDecimal(paginaBinario);
+            desplazamientoDecimal = binaryToDecimal(desplazamientoBinario);
+            
             int *entryToEnqueue = getEntryToEnqueue(direccion_virtual, &firstEntry, &lastEntry, &entry1, &entry2, &entry3, &entry4, &entry5);
             guardarDireccionTlb(direccion_virtual, entryToEnqueue);
-
-            direccionBinario = decimalToBinary(direccion_virtual);
-            paginaBinario = obtenerNumeroPaginaEnBinario(direccionBinario);
-            desplazamientoBinario = obtenerDesplazamientoEnBinario(direccionBinario);
 
         } else {
             isTlbHit = 1;
 
-            /* 
-                Si es tlb hit, cargar datos del TLB (Por hacer) 
-            */
-            direccionBinario = decimalToBinary(direccion_virtual);
-            paginaBinario = obtenerNumeroPaginaEnBinario(direccionBinario);
-            desplazamientoBinario = obtenerDesplazamientoEnBinario(direccionBinario);
+            getDataFromEntry(tlbHitEntry, &paginaDecimal, &desplazamientoDecimal, paginaBinario, desplazamientoBinario);
         }
 
         // Finalizar contador e imprimir mensaje
         finalizarContador(&endTime);
-        logMensaje(direccion_virtual, isTlbHit, paginaBinario, desplazamientoBinario, direccion_reemplazo, calcularDuracion(&startTime, &endTime));
+        logMensaje(
+            direccion_virtual, 
+            isTlbHit, 
+            paginaDecimal, 
+            desplazamientoDecimal, 
+            paginaBinario, 
+            desplazamientoBinario, 
+            direccion_reemplazo, 
+            calcularDuracion(&startTime, &endTime)
+        );
 
         // Liberar recursos
         free(direccionBinario);

@@ -283,18 +283,6 @@ int tlbHas(int direccion, int *entry1, int *entry2, int *entry3, int *entry4, in
     return 0;
 }
 
-int verifyTlb(int *firstEntry, int *lastEntry, int *entry1, int *entry2, int *entry3, int *entry4, int *entry5)
-{
-    int size = getSize(firstEntry, lastEntry);
-
-    if (size < NUM_ENTRADAS)
-    {
-        return -1;
-    }
-
-    return Dequeue(firstEntry, lastEntry);
-}
-
 int removeTlb(int *firstEntry, int *lastEntry, int *entry1, int *entry2, int *entry3, int *entry4, int *entry5)
 {
     int index = Dequeue(firstEntry, lastEntry);

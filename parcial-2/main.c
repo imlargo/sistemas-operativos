@@ -391,6 +391,9 @@ int main()
         } else {
             isTlbHit = 1; // TLB Hit
 
+            paginaBinario = (char *)malloc((valueM - valueN + 1) * sizeof(char));
+            desplazamientoBinario = (char *)malloc((valueN + 1) * sizeof(char));
+            
             // Obtener los datos de la entrada asociada a la direcion
             getDataFromEntry(tlbHitEntry, &paginaDecimal, &desplazamientoDecimal, paginaBinario, desplazamientoBinario);
         }

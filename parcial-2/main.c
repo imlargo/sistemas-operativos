@@ -1,28 +1,38 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <semaphore.h>
 #include <sys/types.h>
-#include <sys/mman.h>
-
 #include <string.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/shm.h>
-
-#include <stdint.h> /* for uint64 definition */
-#include <time.h>   /* for clock_gettime */
+#include <time.h>
 
 /*
 
 # --- Constantes globales --- #
 
-- espacio virtual de direccionamiento de 32 bits
-- páginas de 4 KiB.
+- Espacio virtual de direccionamiento de 32 bits
+- Páginas de 4 KiB.
 
 2 ^ 32 -> m = 32 bits -> 4G total
 4096 bytes por pagina -> 2 ^ 12 -> n = 12
 */
+
+int valueM = 32;
+int valueN = 12;
+int NUM_ENTRADAS = 5; // Cantidad de entradas en el TLB
+
+/*
+dirección de memoria en decimal -> 4bytes
+número de página en decimal -> 4bytes
+desplazamiento en decimal -> 4bytes
+número de página en binario -> valueM - valueN -> 20 bytes
+desplazamiento en binario. -> valueN -> 12 bytes
+
+Tamaño de entrada: 
+3 enteros + 
+20 caracteres para pagina en bin con 1 de terminacion  + 
+12 caracteres para desplazamiento en bin con 1 de terminacion
+*/
+int ENTRY_SIZE = (3 * sizeof(int)) + ((20 + 1) * sizeof(char)) + ((12 + 1) * sizeof(char));
 
 
 /*
@@ -48,14 +58,8 @@ double calcularDuracion(struct timespec *start, struct timespec *end)
     return elapsed;
 }
 
-
-int valueM = 32;
-int valueN = 12;
-int NUM_ENTRADAS = 5; // Cantidad de entradas en el TLB
-int ENTRY_SIZE = (3 * sizeof(int)) + ((20 + 1) * sizeof(char)) + ((12 + 1) * sizeof(char));
-
 /*
-    Mecanismo de cola circular
+    Mecanismo de cola circular con punteros
 */
 
 int getSizeCola(int *first, int *last)
@@ -276,6 +280,7 @@ char* getEntryToEnqueue(int *firstEntry, int *lastEntry, char* TLB)
 
 char* deleteTlbEntry(char* TLB, char *entry)
 {
+    // Simplmente se marca la direccion como -1 para q no sea encontrada
     *((int*)entry) = -1;
     return entry;
 }
@@ -304,7 +309,7 @@ char* TlbFind(char* TLB, int direccion) {
     for (int i = 0; i < 5; i++)
     {
         char *entry = getEntry(i, TLB);
-        int entryDir = *((int*)entry);
+        int entryDir = *((int*)entry); // Direccion
 
         if (entryDir == direccion)
         {
@@ -316,27 +321,18 @@ char* TlbFind(char* TLB, int direccion) {
 }
 
 
-
 /*
     Programa principal
 */
 int main()
 {
 
-
-   /*
-    dirección de memoria en decimal -> 4bytes
-    número de página en decimal -> 4bytes -> 8
-    desplazamiento en decimal -> 4bytes -> 12
-    número de página en binario -> valueM - valueN -> 20 bytes -> 32
-    desplazamiento en binario. -> valueN -> 12 bytes -> 44
-   */
-
     int tlbSize = ENTRY_SIZE * 5;
     char *TLB = malloc(tlbSize);
     
     struct timespec startTime, endTime;
 
+    // Inicializar indices de la cola
     int firstEntryInd = -1;
     int lastEntryInd = -1;
 
@@ -367,34 +363,42 @@ int main()
         int isTlbHit = 0;
         char* direccion_reemplazo = NULL;
         
-        // Buscar tlb segun la direccion, si es tlb miss, agregar a la cola
+        /*
+        Buscar direccion en el tlb, si es tlb miss, agregar a la cola, sino cargar datos
+        */
         char *tlbHitEntry = TlbFind(TLB, direccion_virtual);
         if (tlbHitEntry == NULL)
         {   
-            isTlbHit = 0;
-            // Si el tlb esta lleno, se saca de la cola un elemento
+            isTlbHit = 0; // TLB Miss
+
+            // Si el tlb esta lleno, se saca de la cola (mecanismo FIFO) un elemento
             if (getSizeCola(&firstEntryInd, &lastEntryInd) == NUM_ENTRADAS)
             {   
                 char *entryToDequeue  = getEntryToDequeue(&firstEntryInd, &lastEntryInd, TLB);
                 direccion_reemplazo = deleteTlbEntry(TLB, entryToDequeue);
             }
 
+            // Calcular pagina y desplazamiento
             paginaBinario = calcularNumeroPaginaEnBinario(direccionBinario);
             desplazamientoBinario = calcularDesplazamientoEnBinario(direccionBinario);
             paginaDecimal = binaryToDecimal(paginaBinario);
             desplazamientoDecimal = binaryToDecimal(desplazamientoBinario);
             
-            char *entryToEnqueue = getEntryToEnqueue(&firstEntryInd, &lastEntryInd, TLB);
+            // Obtener la siguiente entrada en la cola (mecanismo FIFO) y guardar los datos
+            char *entryToEnqueue = getEntryToEnqueue(&firstEntryInd, &lastEntryInd, TLB); 
             saveDataInEntry(entryToEnqueue, direccion_virtual, paginaDecimal, desplazamientoDecimal, paginaBinario, desplazamientoBinario);
 
         } else {
-            isTlbHit = 1;
+            isTlbHit = 1; // TLB Hit
 
+            // Obtener los datos de la entrada asociada a la direcion
             getDataFromEntry(tlbHitEntry, &paginaDecimal, &desplazamientoDecimal, paginaBinario, desplazamientoBinario);
         }
 
-        // Finalizar contador e imprimir mensaje
+        // Finalizar contador
         finalizarContador(&endTime);
+
+        // Imprimir mensaje
         logMensaje(
             direccion_virtual, 
             TLB,
